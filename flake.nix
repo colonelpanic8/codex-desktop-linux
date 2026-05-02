@@ -170,7 +170,7 @@ codex_nixos_add_runtime_library_dirs' "${installDir}/start.sh"
 
           outputHashAlgo = "sha256";
           outputHashMode = "recursive";
-          outputHash = "sha256-5bB5LHtOL0x3XAaUrRKRTTxsovHP6VVsgv/dcSfriGs=";
+          outputHash = "sha256-7wV4HCuRpno2dhEhWJ0e7hepBK67fsSTLltBrwdGc2s=";
           unsafeDiscardReferences.out = true;
 
           dontConfigure = true;
