@@ -22,7 +22,7 @@
 
         codexDmg = pkgs.fetchurl {
           url = "https://persistent.oaistatic.com/codex-app-prod/Codex.dmg";
-          hash = "sha256-WSs2iN4Ojk0Ky2FlGsOc8CayZaFHio9Wse+YbpFUE2Y=";
+          hash = "sha256-odBT9MhvsZLpqdAHqcNnXzhnGo54BUmIh96O2EzC8f4=";
         };
 
         electronLibs = with pkgs; [
@@ -149,7 +149,7 @@ codex_nixos_add_runtime_library_dirs' "${installDir}/start.sh"
 
         codexDesktopPayload = pkgs.stdenv.mkDerivation {
           pname = "codex-desktop-payload";
-          version = "unstable-2026-05-02";
+          version = "unstable-2026-05-07";
           src = sourceRoot;
           __structuredAttrs = true;
 
@@ -170,7 +170,7 @@ codex_nixos_add_runtime_library_dirs' "${installDir}/start.sh"
 
           outputHashAlgo = "sha256";
           outputHashMode = "recursive";
-          outputHash = "sha256-hcLEkQ9nOqIGyDO/52VfyICDstJBMVUoxCeJmd3mhjc=";
+          outputHash = "sha256-jRqoprD0leHJ+RGLPIfizu3asFJzxOGceOLdSi0x3IM=";
           unsafeDiscardReferences.out = true;
 
           dontConfigure = true;
@@ -185,6 +185,7 @@ codex_nixos_add_runtime_library_dirs' "${installDir}/start.sh"
             export NIX_SSL_CERT_FILE="$SSL_CERT_FILE"
             export npm_config_cafile="$SSL_CERT_FILE"
             export CARGO_HOME="$TMPDIR/cargo-home"
+            export CODEX_MANAGED_NODE_SOURCE="${pkgs.nodejs}"
             mkdir -p "$HOME" "$npm_config_cache" "$CARGO_HOME"
 
             source_dir="$TMPDIR/codex-source"
@@ -232,7 +233,7 @@ NODE
 
         codexDesktop = pkgs.stdenv.mkDerivation {
           pname = "codex-desktop";
-          version = "unstable-2026-05-02";
+          version = "unstable-2026-05-07";
           src = codexDesktopPayload;
 
           nativeBuildInputs = [
@@ -320,6 +321,7 @@ NODE
 
             cd "$source_dir"
             export CODEX_INSTALL_DIR="''${CODEX_INSTALL_DIR:-$root_dir/codex-app}"
+            export CODEX_MANAGED_NODE_SOURCE="${pkgs.nodejs}"
             ${pkgs.bash}/bin/bash "$source_dir/install.sh" "$source_dir/Codex.dmg" "$@"
 
             install_dir="''${CODEX_INSTALL_DIR:-$root_dir/codex-app}"

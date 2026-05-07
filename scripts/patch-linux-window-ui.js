@@ -1126,8 +1126,8 @@ function parseDestructuredParamAliases(paramsText) {
   return aliases;
 }
 
-function buildComputerUseGate({ nameExpr, featuresVar, platformVar, migrateVar }) {
-  return `{installWhenMissing:!0,name:${nameExpr},isEnabled:({features:${featuresVar},platform:${platformVar}})=>(${platformVar}===\`darwin\`||${platformVar}===\`linux\`)&&${featuresVar}.computerUse,migrate:${migrateVar}}`;
+function buildComputerUseGate({ gateKey, nameExpr, featuresVar, platformVar, migrateVar }) {
+  return `{installWhenMissing:!0,name:${nameExpr},${gateKey}:({features:${featuresVar},platform:${platformVar}})=>(${platformVar}===\`darwin\`||${platformVar}===\`linux\`)&&${featuresVar}.computerUse,migrate:${migrateVar}}`;
 }
 
 function hasComputerUseLiteral(source) {
@@ -1145,12 +1145,12 @@ function applyLinuxComputerUsePluginGatePatch(currentSource) {
 
   const computerUseNameVar = currentSource.match(/([A-Za-z_$][\w$]*)=(?:`computer-use`|"computer-use"|'computer-use')/)?.[1] ?? null;
   const gateRegex =
-    /\{(installWhenMissing:!0,)?name:([A-Za-z_$][\w$]*|`computer-use`|"computer-use"|'computer-use'),isEnabled:\(\{([^}]*)\}\)=>([^{}]*?\.computerUse),migrate:([A-Za-z_$][\w$]*)\}/g;
+    /\{(installWhenMissing:!0,)?name:([A-Za-z_$][\w$]*|`computer-use`|"computer-use"|'computer-use'),(isEnabled|isAvailable):\(\{([^}]*)\}\)=>([^{}]*?\.computerUse),migrate:([A-Za-z_$][\w$]*)\}/g;
   let sawEnabledGate = false;
   let sawUnpatchableGate = false;
   let match;
   while ((match = gateRegex.exec(currentSource)) != null) {
-    const [gateSource, installWhenMissing, nameExpr, paramsText, expression, migrateVar] = match;
+    const [gateSource, installWhenMissing, nameExpr, gateKey, paramsText, expression, migrateVar] = match;
     if (!isComputerUseNameExpr(nameExpr, computerUseNameVar)) {
       continue;
     }
@@ -1169,7 +1169,7 @@ function applyLinuxComputerUsePluginGatePatch(currentSource) {
       continue;
     }
     if (expression === darwinOnlyExpression || expression === linuxExpression) {
-      const replacement = buildComputerUseGate({ nameExpr, featuresVar, platformVar, migrateVar });
+      const replacement = buildComputerUseGate({ gateKey, nameExpr, featuresVar, platformVar, migrateVar });
       return `${currentSource.slice(0, match.index)}${replacement}${currentSource.slice(match.index + gateSource.length)}`;
     }
     sawUnpatchableGate = true;
