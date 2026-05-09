@@ -99,7 +99,8 @@ struct AppData {
     toplevel_info: Option<zcosmic_toplevel_info_v1::ZcosmicToplevelInfoV1>,
     toplevel_manager: Option<zcosmic_toplevel_manager_v1::ZcosmicToplevelManagerV1>,
     seats: Vec<wl_seat::WlSeat>,
-    capabilities: Vec<WEnum<zcosmic_toplevel_manager_v1::ZcosmicToplelevelManagementCapabilitiesV1>>,
+    capabilities:
+        Vec<WEnum<zcosmic_toplevel_manager_v1::ZcosmicToplelevelManagementCapabilitiesV1>>,
     records: Vec<ToplevelRecord>,
     by_foreign_id: HashMap<u32, usize>,
     by_cosmic_id: HashMap<u32, usize>,
@@ -180,11 +181,7 @@ fn collect_windows() -> Result<Vec<WindowInfo>> {
 
 fn focused_window() -> Result<Option<WindowInfo>> {
     let snapshot = Snapshot::collect()?;
-    if let Some(window) = snapshot
-        .windows()
-        .into_iter()
-        .find(|window| window.focused)
-    {
+    if let Some(window) = snapshot.windows().into_iter().find(|window| window.focused) {
         clear_activation_state();
         return Ok(Some(window));
     }
@@ -242,17 +239,25 @@ impl Snapshot {
         globals.contents().with_list(|entries| {
             for global in entries {
                 if global.interface == "wl_seat" {
-                    snapshot.app_data.seats.push(
-                        globals
-                            .registry()
-                            .bind::<wl_seat::WlSeat, _, _>(global.name, global.version.min(9), &qh, ()),
-                    );
+                    snapshot
+                        .app_data
+                        .seats
+                        .push(globals.registry().bind::<wl_seat::WlSeat, _, _>(
+                            global.name,
+                            global.version.min(9),
+                            &qh,
+                            (),
+                        ));
                 }
             }
         });
         if snapshot.app_data.toplevel_info.is_some() {
             let _ = globals
-                .bind::<ext_foreign_toplevel_list_v1::ExtForeignToplevelListV1, _, _>(&qh, 1..=1, ())
+                .bind::<ext_foreign_toplevel_list_v1::ExtForeignToplevelListV1, _, _>(
+                    &qh,
+                    1..=1,
+                    (),
+                )
                 .ok();
         }
         snapshot.prime()?;
@@ -355,17 +360,22 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for AppData {
                 "zcosmic_toplevel_info_v1" => {
                     app_data.toplevel_info = Some(
                         registry.bind::<zcosmic_toplevel_info_v1::ZcosmicToplevelInfoV1, _, _>(
-                            name, 3, qh, (),
+                            name,
+                            3,
+                            qh,
+                            (),
                         ),
                     );
                 }
                 "zcosmic_toplevel_manager_v1" => {
                     app_data.toplevel_manager = Some(
-                        registry.bind::<
-                            zcosmic_toplevel_manager_v1::ZcosmicToplevelManagerV1,
-                            _,
-                            _,
-                        >(name, 4, qh, ()),
+                        registry
+                            .bind::<zcosmic_toplevel_manager_v1::ZcosmicToplevelManagerV1, _, _>(
+                                name,
+                                4,
+                                qh,
+                                (),
+                            ),
                     );
                 }
                 "wl_seat" => {
@@ -402,7 +412,9 @@ impl Dispatch<ext_foreign_toplevel_list_v1::ExtForeignToplevelListV1, ()> for Ap
                         .insert(cosmic.id().protocol_id(), app_data.records.len());
                     record.cosmic = Some(cosmic);
                 }
-                app_data.by_foreign_id.insert(foreign_id, app_data.records.len());
+                app_data
+                    .by_foreign_id
+                    .insert(foreign_id, app_data.records.len());
                 app_data.records.push(record);
             }
             ext_foreign_toplevel_list_v1::Event::Finished => {}
@@ -428,7 +440,11 @@ impl Dispatch<ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1, ()> fo
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        let Some(index) = app_data.by_foreign_id.get(&handle.id().protocol_id()).copied() else {
+        let Some(index) = app_data
+            .by_foreign_id
+            .get(&handle.id().protocol_id())
+            .copied()
+        else {
             return;
         };
         let record = &mut app_data.records[index];
@@ -481,7 +497,11 @@ impl Dispatch<zcosmic_toplevel_handle_v1::ZcosmicToplevelHandleV1, ()> for AppDa
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        let Some(index) = app_data.by_cosmic_id.get(&handle.id().protocol_id()).copied() else {
+        let Some(index) = app_data
+            .by_cosmic_id
+            .get(&handle.id().protocol_id())
+            .copied()
+        else {
             return;
         };
         let record = &mut app_data.records[index];

@@ -12,9 +12,8 @@ use crate::remote_desktop::{
 use crate::screenshot::{capture_screenshot, ScreenshotCapture};
 use crate::windows::{
     focus_window_target, focused_window, list_windows, resolve_window_target,
-    window_permission_hint, WindowFocusResult, WindowInfo, WindowTarget,
-    COSMIC_WAYLAND_BACKEND, GNOME_SHELL_EXTENSION_BACKEND, GNOME_SHELL_INTROSPECT_BACKEND,
-    HYPRLAND_BACKEND, KWIN_BACKEND,
+    window_permission_hint, WindowFocusResult, WindowInfo, WindowTarget, COSMIC_WAYLAND_BACKEND,
+    GNOME_SHELL_EXTENSION_BACKEND, GNOME_SHELL_INTROSPECT_BACKEND, HYPRLAND_BACKEND, KWIN_BACKEND,
 };
 use anyhow::Result;
 use rmcp::{

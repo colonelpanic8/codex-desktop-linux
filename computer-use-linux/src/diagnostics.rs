@@ -375,7 +375,8 @@ fn windowing_report(platform: &PlatformReport) -> WindowingReport {
     )
     .ok;
     let can_focus_apps = gnome_focus_apps || cosmic_helper.ok || kwin.ok || hyprland.ok;
-    let can_focus_windows = codex_gnome_shell_extension.ok || cosmic_helper.ok || kwin.ok || hyprland.ok;
+    let can_focus_windows =
+        codex_gnome_shell_extension.ok || cosmic_helper.ok || kwin.ok || hyprland.ok;
     let note = if can_list_windows {
         if cosmic_helper.ok && is_cosmic_wayland_platform(platform) {
             "A COSMIC Wayland window backend is available for list_windows, focused_window, and targeted input verification."

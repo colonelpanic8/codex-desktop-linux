@@ -139,4 +139,3 @@ fn is_executable(path: &Path) -> bool {
         })
         .unwrap_or(false)
 }
-
