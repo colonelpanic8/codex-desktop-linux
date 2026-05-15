@@ -8,6 +8,7 @@ UPSTREAM_DMG_PATH="${UPSTREAM_DMG_PATH:-/tmp/Codex.dmg}"
 BUILD_LOG="${BUILD_LOG:-/tmp/codex-nix-build.log}"
 COMPUTER_USE_UI_BUILD_LOG="${COMPUTER_USE_UI_BUILD_LOG:-/tmp/codex-nix-build-computer-use-ui.log}"
 REMOTE_MOBILE_CONTROL_BUILD_LOG="${REMOTE_MOBILE_CONTROL_BUILD_LOG:-/tmp/codex-nix-build-remote-mobile-control.log}"
+COMBINED_FEATURES_BUILD_LOG="${COMBINED_FEATURES_BUILD_LOG:-/tmp/codex-nix-build-computer-use-ui-remote-mobile-control.log}"
 VERIFY_LOG="${VERIFY_LOG:-/tmp/codex-nix-build-verify.log}"
 FAKE_SRI_HASH="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
@@ -116,18 +117,22 @@ restore_flake_hashes() {
     local payload_hash="$2"
     local computer_use_ui_payload_hash="$3"
     local remote_mobile_control_payload_hash="$4"
+    local combined_features_payload_hash="$5"
 
     if [ -n "$dmg_hash" ]; then
         replace_flake_hash "codexDmg = pkgs.fetchurl {" "hash = " "$dmg_hash"
     fi
     if [ -n "$payload_hash" ]; then
-        replace_flake_hash "codexDesktopPayload = mkCodexDesktopPayload {" "outputHash = " "$payload_hash"
+        replace_flake_hash "codexDesktop = mkCodexDesktop {" "payloadHash = " "$payload_hash"
     fi
     if [ -n "$computer_use_ui_payload_hash" ]; then
-        replace_flake_hash "codexDesktopComputerUseUiPayload = mkCodexDesktopPayload {" "outputHash = " "$computer_use_ui_payload_hash"
+        replace_flake_hash "codexDesktopComputerUseUi = mkCodexDesktop {" "payloadHash = " "$computer_use_ui_payload_hash"
     fi
     if [ -n "$remote_mobile_control_payload_hash" ]; then
-        replace_flake_hash "codexDesktopRemoteMobileControlPayload = mkCodexDesktopPayload {" "outputHash = " "$remote_mobile_control_payload_hash"
+        replace_flake_hash "codexDesktopRemoteMobileControl = mkCodexDesktop {" "payloadHash = " "$remote_mobile_control_payload_hash"
+    fi
+    if [ -n "$combined_features_payload_hash" ]; then
+        replace_flake_hash "codexDesktopComputerUseUiRemoteMobileControl = mkCodexDesktop {" "payloadHash = " "$combined_features_payload_hash"
     fi
 }
 
@@ -136,6 +141,7 @@ main() {
     local current_payload_hash=""
     local current_computer_use_ui_payload_hash=""
     local current_remote_mobile_control_payload_hash=""
+    local current_combined_features_payload_hash=""
     mkdir -p "$(dirname "$UPSTREAM_DMG_PATH")"
     curl -fL --retry 3 -o "$UPSTREAM_DMG_PATH" "$UPSTREAM_DMG_URL"
 
@@ -146,6 +152,11 @@ main() {
     fi
 
     current_dmg_hash="$(read_flake_hash "codexDmg = pkgs.fetchurl {" "hash = ")"
+    current_payload_hash="$(read_flake_hash "codexDesktop = mkCodexDesktop {" "payloadHash = ")"
+    current_computer_use_ui_payload_hash="$(read_flake_hash "codexDesktopComputerUseUi = mkCodexDesktop {" "payloadHash = ")"
+    current_remote_mobile_control_payload_hash="$(read_flake_hash "codexDesktopRemoteMobileControl = mkCodexDesktop {" "payloadHash = ")"
+    current_combined_features_payload_hash="$(read_flake_hash "codexDesktopComputerUseUiRemoteMobileControl = mkCodexDesktop {" "payloadHash = ")"
+
     echo "Current Codex.dmg hash:  $current_dmg_hash"
     echo "Upstream Codex.dmg hash: $new_dmg_hash"
     replace_flake_hash "codexDmg = pkgs.fetchurl {" "hash = " "$new_dmg_hash"
@@ -154,89 +165,112 @@ main() {
     # for hashing instead of fetching the same 300MB artifact again.
     nix-store --add-fixed sha256 "$UPSTREAM_DMG_PATH" >/dev/null
 
-    current_payload_hash="$(read_flake_hash "codexDesktopPayload = mkCodexDesktopPayload {" "outputHash = ")"
-    echo "Current payload outputHash: $current_payload_hash"
-    echo "Forcing payload outputHash refresh..."
-    replace_flake_hash "codexDesktopPayload = mkCodexDesktopPayload {" "outputHash = " "$FAKE_SRI_HASH"
+    echo "Current codex-desktop payloadHash: $current_payload_hash"
+    echo "Forcing codex-desktop payloadHash refresh..."
+    replace_flake_hash "codexDesktop = mkCodexDesktop {" "payloadHash = " "$FAKE_SRI_HASH"
 
     if run_nix_build "$BUILD_LOG" .#codex-desktop; then
-        echo "Nix build unexpectedly succeeded with the fake payload outputHash." >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        echo "Nix build unexpectedly succeeded with the fake codex-desktop payloadHash." >&2
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
     new_payload_hash="$(extract_got_sri_hash "$BUILD_LOG" || true)"
     if [ -z "$new_payload_hash" ]; then
         echo "Nix build failed without a fixed-output hash mismatch; leaving log at $BUILD_LOG" >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
     if ! validate_sri_hash "$new_payload_hash"; then
         echo "Refusing to proceed: extracted payload hash '$new_payload_hash' is not a valid SRI sha256." >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
-    echo "Actual payload outputHash:  $new_payload_hash"
-    replace_flake_hash "codexDesktopPayload = mkCodexDesktopPayload {" "outputHash = " "$new_payload_hash"
+    echo "Actual codex-desktop payloadHash:  $new_payload_hash"
+    replace_flake_hash "codexDesktop = mkCodexDesktop {" "payloadHash = " "$new_payload_hash"
 
-    current_computer_use_ui_payload_hash="$(read_flake_hash "codexDesktopComputerUseUiPayload = mkCodexDesktopPayload {" "outputHash = ")"
-    echo "Current Computer Use UI payload outputHash: $current_computer_use_ui_payload_hash"
-    echo "Forcing Computer Use UI payload outputHash refresh..."
-    replace_flake_hash "codexDesktopComputerUseUiPayload = mkCodexDesktopPayload {" "outputHash = " "$FAKE_SRI_HASH"
+    echo "Current Computer Use UI payloadHash: $current_computer_use_ui_payload_hash"
+    echo "Forcing Computer Use UI payloadHash refresh..."
+    replace_flake_hash "codexDesktopComputerUseUi = mkCodexDesktop {" "payloadHash = " "$FAKE_SRI_HASH"
 
     if run_nix_build "$COMPUTER_USE_UI_BUILD_LOG" .#codex-desktop-computer-use-ui; then
-        echo "Nix build unexpectedly succeeded with the fake Computer Use UI payload outputHash." >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        echo "Nix build unexpectedly succeeded with the fake Computer Use UI payloadHash." >&2
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
     new_computer_use_ui_payload_hash="$(extract_got_sri_hash "$COMPUTER_USE_UI_BUILD_LOG" || true)"
     if [ -z "$new_computer_use_ui_payload_hash" ]; then
         echo "Nix build failed without a Computer Use UI fixed-output hash mismatch; leaving log at $COMPUTER_USE_UI_BUILD_LOG" >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
     if ! validate_sri_hash "$new_computer_use_ui_payload_hash"; then
         echo "Refusing to proceed: extracted Computer Use UI payload hash '$new_computer_use_ui_payload_hash' is not a valid SRI sha256." >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
-    echo "Actual Computer Use UI payload outputHash:  $new_computer_use_ui_payload_hash"
-    replace_flake_hash "codexDesktopComputerUseUiPayload = mkCodexDesktopPayload {" "outputHash = " "$new_computer_use_ui_payload_hash"
+    echo "Actual Computer Use UI payloadHash:  $new_computer_use_ui_payload_hash"
+    replace_flake_hash "codexDesktopComputerUseUi = mkCodexDesktop {" "payloadHash = " "$new_computer_use_ui_payload_hash"
 
-    current_remote_mobile_control_payload_hash="$(read_flake_hash "codexDesktopRemoteMobileControlPayload = mkCodexDesktopPayload {" "outputHash = ")"
-    echo "Current Remote Mobile Control payload outputHash: $current_remote_mobile_control_payload_hash"
-    echo "Forcing Remote Mobile Control payload outputHash refresh..."
-    replace_flake_hash "codexDesktopRemoteMobileControlPayload = mkCodexDesktopPayload {" "outputHash = " "$FAKE_SRI_HASH"
+    echo "Current Remote Mobile Control payloadHash: $current_remote_mobile_control_payload_hash"
+    echo "Forcing Remote Mobile Control payloadHash refresh..."
+    replace_flake_hash "codexDesktopRemoteMobileControl = mkCodexDesktop {" "payloadHash = " "$FAKE_SRI_HASH"
 
     if run_nix_build "$REMOTE_MOBILE_CONTROL_BUILD_LOG" .#codex-desktop-remote-mobile-control; then
-        echo "Nix build unexpectedly succeeded with the fake Remote Mobile Control payload outputHash." >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        echo "Nix build unexpectedly succeeded with the fake Remote Mobile Control payloadHash." >&2
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
     new_remote_mobile_control_payload_hash="$(extract_got_sri_hash "$REMOTE_MOBILE_CONTROL_BUILD_LOG" || true)"
     if [ -z "$new_remote_mobile_control_payload_hash" ]; then
         echo "Nix build failed without a Remote Mobile Control fixed-output hash mismatch; leaving log at $REMOTE_MOBILE_CONTROL_BUILD_LOG" >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
     if ! validate_sri_hash "$new_remote_mobile_control_payload_hash"; then
         echo "Refusing to proceed: extracted Remote Mobile Control payload hash '$new_remote_mobile_control_payload_hash' is not a valid SRI sha256." >&2
-        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash"
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
         exit 1
     fi
 
-    echo "Actual Remote Mobile Control payload outputHash:  $new_remote_mobile_control_payload_hash"
-    replace_flake_hash "codexDesktopRemoteMobileControlPayload = mkCodexDesktopPayload {" "outputHash = " "$new_remote_mobile_control_payload_hash"
+    echo "Actual Remote Mobile Control payloadHash:  $new_remote_mobile_control_payload_hash"
+    replace_flake_hash "codexDesktopRemoteMobileControl = mkCodexDesktop {" "payloadHash = " "$new_remote_mobile_control_payload_hash"
 
-    run_nix_build "$VERIFY_LOG" .#codex-desktop .#codex-desktop-computer-use-ui .#codex-desktop-remote-mobile-control
-    echo "Nix builds succeeded after refreshing the payload outputHashes."
+    echo "Current combined feature payloadHash: $current_combined_features_payload_hash"
+    echo "Forcing combined feature payloadHash refresh..."
+    replace_flake_hash "codexDesktopComputerUseUiRemoteMobileControl = mkCodexDesktop {" "payloadHash = " "$FAKE_SRI_HASH"
+
+    if run_nix_build "$COMBINED_FEATURES_BUILD_LOG" .#codex-desktop-computer-use-ui-remote-mobile-control; then
+        echo "Nix build unexpectedly succeeded with the fake combined feature payloadHash." >&2
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
+        exit 1
+    fi
+
+    new_combined_features_payload_hash="$(extract_got_sri_hash "$COMBINED_FEATURES_BUILD_LOG" || true)"
+    if [ -z "$new_combined_features_payload_hash" ]; then
+        echo "Nix build failed without a combined feature fixed-output hash mismatch; leaving log at $COMBINED_FEATURES_BUILD_LOG" >&2
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
+        exit 1
+    fi
+
+    if ! validate_sri_hash "$new_combined_features_payload_hash"; then
+        echo "Refusing to proceed: extracted combined feature payload hash '$new_combined_features_payload_hash' is not a valid SRI sha256." >&2
+        restore_flake_hashes "$current_dmg_hash" "$current_payload_hash" "$current_computer_use_ui_payload_hash" "$current_remote_mobile_control_payload_hash" "$current_combined_features_payload_hash"
+        exit 1
+    fi
+
+    echo "Actual combined feature payloadHash:  $new_combined_features_payload_hash"
+    replace_flake_hash "codexDesktopComputerUseUiRemoteMobileControl = mkCodexDesktop {" "payloadHash = " "$new_combined_features_payload_hash"
+
+    run_nix_build "$VERIFY_LOG" .#codex-desktop .#codex-desktop-computer-use-ui .#codex-desktop-remote-mobile-control .#codex-desktop-computer-use-ui-remote-mobile-control
+    echo "Nix builds succeeded after refreshing the payloadHashes."
 }
 
 case "${1:-}" in
