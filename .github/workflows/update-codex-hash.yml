@@ -36,9 +36,6 @@ jobs:
           fi
 
           CODEX_DMG_HASH="$(scripts/ci/update-nix-hashes.sh read-flake-hash 'codexDmg = pkgs.fetchurl {' 'hash = ')"
-          PAYLOAD_HASH="$(scripts/ci/update-nix-hashes.sh read-flake-hash 'codexDesktopPayload = mkCodexDesktopPayload {' 'outputHash = ')"
-          COMPUTER_USE_UI_PAYLOAD_HASH="$(scripts/ci/update-nix-hashes.sh read-flake-hash 'codexDesktopComputerUseUiPayload = mkCodexDesktopPayload {' 'outputHash = ')"
-          REMOTE_MOBILE_CONTROL_PAYLOAD_HASH="$(scripts/ci/update-nix-hashes.sh read-flake-hash 'codexDesktopRemoteMobileControlPayload = mkCodexDesktopPayload {' 'outputHash = ')"
 
           git config user.name  "codex-dmg-hash-bot"
           git config user.email "actions@github.com"
@@ -46,8 +43,6 @@ jobs:
           git commit \
             -m "fix(nix): update upstream Nix hashes" \
             -m "Refreshed Codex.dmg SRI hash to $CODEX_DMG_HASH." \
-            -m "Refreshed codexDesktopPayload recursive outputHash to $PAYLOAD_HASH." \
-            -m "Refreshed codexDesktopComputerUseUiPayload recursive outputHash to $COMPUTER_USE_UI_PAYLOAD_HASH." \
-            -m "Refreshed codexDesktopRemoteMobileControlPayload recursive outputHash to $REMOTE_MOBILE_CONTROL_PAYLOAD_HASH." \
+            -m "Verified all Codex Desktop Nix package outputs against the refreshed DMG." \
             -m "[skip ci]"
           git push origin main
