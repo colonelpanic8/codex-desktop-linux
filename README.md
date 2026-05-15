@@ -84,6 +84,12 @@ Because flakes do not include the git-ignored `linux-features/features.json` opt
 nix run github:ilysenko/codex-desktop-linux#remote-mobile-control
 ```
 
+Feature-specific Nix outputs are additive. To enable both the Computer Use UI and experimental mobile remote control:
+
+```bash
+nix run github:ilysenko/codex-desktop-linux#computer-use-ui-remote-mobile-control
+```
+
 `nix develop github:ilysenko/codex-desktop-linux` enters a dev shell with the required tooling.
 
 ## Linux Computer Use
@@ -166,6 +172,12 @@ Nix users can also run the opt-in flake output directly:
 
 ```bash
 nix run github:ilysenko/codex-desktop-linux#codex-desktop-computer-use-ui
+```
+
+The Computer Use UI output can also be combined with Linux feature outputs, for example:
+
+```bash
+nix run github:ilysenko/codex-desktop-linux#computer-use-ui-remote-mobile-control
 ```
 
 ### Side-by-side dev variant

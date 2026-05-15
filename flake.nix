@@ -184,12 +184,18 @@ PY
             enabled = linuxFeatureIds;
           });
 
-        packageSuffix = linuxFeatureIds:
-          if linuxFeatureIds == [ ] then "" else "-${pkgs.lib.concatStringsSep "-" linuxFeatureIds}";
+        enabledFeatureIds = { enableComputerUseUi ? false, linuxFeatureIds ? [ ] }:
+          pkgs.lib.optionals enableComputerUseUi [ "computer-use-ui" ] ++ linuxFeatureIds;
+
+        packageSuffix = args:
+          let
+            featureIds = enabledFeatureIds args;
+          in
+          if featureIds == [ ] then "" else "-${pkgs.lib.concatStringsSep "-" featureIds}";
 
         mkCodexDesktopPayload = { enableComputerUseUi ? false, linuxFeatureIds ? [ ], outputHash }:
         pkgs.stdenv.mkDerivation {
-          pname = if enableComputerUseUi then "codex-desktop-computer-use-ui-payload" else "codex-desktop-payload${packageSuffix linuxFeatureIds}";
+          pname = "codex-desktop${packageSuffix { inherit enableComputerUseUi linuxFeatureIds; }}-payload";
           version = "26.506.21252";
           src = sourceRoot;
           __structuredAttrs = true;
@@ -267,23 +273,16 @@ PY
           '';
         };
 
-        codexDesktopPayload = mkCodexDesktopPayload {
-          outputHash = "sha256-oikRvP+7uKLnue/Kt2QYi62+SGshTa+pa/bGgDF0/MU=";
-        };
-
-        codexDesktopComputerUseUiPayload = mkCodexDesktopPayload {
-          enableComputerUseUi = true;
-          outputHash = "sha256-bOjhutEpccYUYl3SfFhNoNOVZJKnsVaYeIVOANcA+a8=";
-        };
-
-        codexDesktopRemoteMobileControlPayload = mkCodexDesktopPayload {
-          linuxFeatureIds = [ "remote-mobile-control" ];
-          outputHash = "sha256-T7Vd20fWm7Yz5vNxC05H40rE8Oq3NFLErgxr/s/0mEk=";
-        };
-
-        mkCodexDesktop = { pname ? "codex-desktop", payload }:
+        mkCodexDesktop = { enableComputerUseUi ? false, linuxFeatureIds ? [ ], payloadHash }:
+        let
+          featureArgs = { inherit enableComputerUseUi linuxFeatureIds; };
+          payload = mkCodexDesktopPayload {
+            inherit enableComputerUseUi linuxFeatureIds;
+            outputHash = payloadHash;
+          };
+        in
         pkgs.stdenv.mkDerivation {
-          inherit pname;
+          pname = "codex-desktop${packageSuffix featureArgs}";
           version = "26.506.21252";
           src = payload;
 
@@ -344,7 +343,14 @@ PY
           '';
 
           meta = {
-            description = if pname == "codex-desktop-computer-use-ui" then "Codex Desktop for Linux with Computer Use UI enabled" else "Codex Desktop for Linux";
+            description =
+              let
+                featureIds = enabledFeatureIds featureArgs;
+              in
+              if featureIds == [ ] then
+                "Codex Desktop for Linux"
+              else
+                "Codex Desktop for Linux with ${pkgs.lib.concatStringsSep ", " featureIds} enabled";
             homepage = "https://github.com/ilysenko/codex-desktop-linux";
             license = pkgs.lib.licenses.mit;
             platforms = pkgs.lib.platforms.linux;
@@ -353,17 +359,23 @@ PY
         };
 
         codexDesktop = mkCodexDesktop {
-          payload = codexDesktopPayload;
+          payloadHash = "sha256-oikRvP+7uKLnue/Kt2QYi62+SGshTa+pa/bGgDF0/MU=";
         };
 
         codexDesktopComputerUseUi = mkCodexDesktop {
-          pname = "codex-desktop-computer-use-ui";
-          payload = codexDesktopComputerUseUiPayload;
+          enableComputerUseUi = true;
+          payloadHash = "sha256-bOjhutEpccYUYl3SfFhNoNOVZJKnsVaYeIVOANcA+a8=";
         };
 
         codexDesktopRemoteMobileControl = mkCodexDesktop {
-          pname = "codex-desktop-remote-mobile-control";
-          payload = codexDesktopRemoteMobileControlPayload;
+          linuxFeatureIds = [ "remote-mobile-control" ];
+          payloadHash = "sha256-qNJEgQ0aj4b8HxF4syav6gxfID3NGfTxh6kN4FvSDuU=";
+        };
+
+        codexDesktopComputerUseUiRemoteMobileControl = mkCodexDesktop {
+          enableComputerUseUi = true;
+          linuxFeatureIds = [ "remote-mobile-control" ];
+          payloadHash = "sha256-qRQjww+XmHcNjmKuKqTCh5JjNaMPe4Ujz6a1Fl3njcI=";
         };
 
         installer = pkgs.writeShellApplication {
@@ -413,6 +425,7 @@ PY
           codex-desktop = codexDesktop;
           codex-desktop-computer-use-ui = codexDesktopComputerUseUi;
           codex-desktop-remote-mobile-control = codexDesktopRemoteMobileControl;
+          codex-desktop-computer-use-ui-remote-mobile-control = codexDesktopComputerUseUiRemoteMobileControl;
           installer = installer;
         };
 
@@ -424,6 +437,11 @@ PY
         apps.remote-mobile-control = {
           type = "app";
           program = "${codexDesktopRemoteMobileControl}/bin/codex-desktop";
+        };
+
+        apps.computer-use-ui-remote-mobile-control = {
+          type = "app";
+          program = "${codexDesktopComputerUseUiRemoteMobileControl}/bin/codex-desktop";
         };
 
         apps.installer = {
