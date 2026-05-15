@@ -179,9 +179,17 @@ PY
           fi
         '';
 
-        mkCodexDesktopPayload = { enableComputerUseUi ? false, outputHash }:
+        linuxFeaturesConfig = linuxFeatureIds:
+          pkgs.writeText "codex-linux-features.json" (builtins.toJSON {
+            enabled = linuxFeatureIds;
+          });
+
+        packageSuffix = linuxFeatureIds:
+          if linuxFeatureIds == [ ] then "" else "-${pkgs.lib.concatStringsSep "-" linuxFeatureIds}";
+
+        mkCodexDesktopPayload = { enableComputerUseUi ? false, linuxFeatureIds ? [ ], outputHash }:
         pkgs.stdenv.mkDerivation {
-          pname = if enableComputerUseUi then "codex-desktop-computer-use-ui-payload" else "codex-desktop-payload";
+          pname = if enableComputerUseUi then "codex-desktop-computer-use-ui-payload" else "codex-desktop-payload${packageSuffix linuxFeatureIds}";
           version = "26.506.21252";
           src = sourceRoot;
           __structuredAttrs = true;
@@ -227,6 +235,7 @@ PY
             export CXXFLAGS="''${CXXFLAGS:-} -ffile-prefix-map=$TMPDIR=/build -fdebug-prefix-map=$TMPDIR=/build -fmacro-prefix-map=$TMPDIR=/build"
             export RUSTFLAGS="''${RUSTFLAGS:-} --remap-path-prefix=$TMPDIR=/build -C link-arg=-Wl,--build-id=none"
             export CODEX_MANAGED_NODE_SOURCE="${pkgs.nodejs}"
+            export CODEX_LINUX_FEATURES_CONFIG="${linuxFeaturesConfig linuxFeatureIds}"
             mkdir -p "$HOME" "$npm_config_cache" "$CARGO_HOME"
 
             source_dir="$TMPDIR/codex-source"
@@ -265,6 +274,11 @@ PY
         codexDesktopComputerUseUiPayload = mkCodexDesktopPayload {
           enableComputerUseUi = true;
           outputHash = "sha256-bOjhutEpccYUYl3SfFhNoNOVZJKnsVaYeIVOANcA+a8=";
+        };
+
+        codexDesktopRemoteMobileControlPayload = mkCodexDesktopPayload {
+          linuxFeatureIds = [ "remote-mobile-control" ];
+          outputHash = "sha256-T7Vd20fWm7Yz5vNxC05H40rE8Oq3NFLErgxr/s/0mEk=";
         };
 
         mkCodexDesktop = { pname ? "codex-desktop", payload }:
@@ -347,6 +361,11 @@ PY
           payload = codexDesktopComputerUseUiPayload;
         };
 
+        codexDesktopRemoteMobileControl = mkCodexDesktop {
+          pname = "codex-desktop-remote-mobile-control";
+          payload = codexDesktopRemoteMobileControlPayload;
+        };
+
         installer = pkgs.writeShellApplication {
           name = "codex-desktop-installer";
           runtimeInputs = [
@@ -393,12 +412,18 @@ PY
           default = codexDesktop;
           codex-desktop = codexDesktop;
           codex-desktop-computer-use-ui = codexDesktopComputerUseUi;
+          codex-desktop-remote-mobile-control = codexDesktopRemoteMobileControl;
           installer = installer;
         };
 
         apps.default = {
           type = "app";
           program = "${codexDesktop}/bin/codex-desktop";
+        };
+
+        apps.remote-mobile-control = {
+          type = "app";
+          program = "${codexDesktopRemoteMobileControl}/bin/codex-desktop";
         };
 
         apps.installer = {
