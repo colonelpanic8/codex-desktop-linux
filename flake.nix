@@ -194,7 +194,7 @@ PY
             pkgs.gnused
             pkgs.makeWrapper
             pkgs.nodejs
-            pkgs.p7zip
+            pkgs._7zz
             pkgs.patchelf
             pkgs.python3
             pkgs.unzip
@@ -202,7 +202,7 @@ PY
 
           outputHashAlgo = "sha256";
           outputHashMode = "recursive";
-          outputHash = "sha256-am6vffCgLeArVmji3tcK5YhdU19fYT+pjO23Vv7rIzI=";
+          outputHash = "sha256-70GGJ1swnU3yywp+T7qO0ZzlmRcYHkV5uEngzuZ79TI=";
           unsafeDiscardReferences.out = true;
 
           dontConfigure = true;
@@ -344,7 +344,7 @@ NODE
             pkgs.bash
             pkgs.nodejs
             pkgs.python3
-            pkgs.p7zip
+            pkgs._7zz
             pkgs.curl
             pkgs.unzip
             pkgs.gnumake
@@ -400,7 +400,7 @@ NODE
           packages = [
             pkgs.nodejs
             pkgs.python3
-            pkgs.p7zip
+            pkgs._7zz
             pkgs.curl
             pkgs.unzip
             pkgs.gnumake
