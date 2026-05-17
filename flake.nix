@@ -422,15 +422,16 @@ PY
           '';
         };
 
-        mkCodexDesktop = { enableComputerUseUi ? false, linuxFeatureIds ? [ ] }:
+        mkCodexDesktop = { pname ? null, enableComputerUseUi ? false, linuxFeatureIds ? [ ] }:
         let
           featureArgs = { inherit enableComputerUseUi linuxFeatureIds; };
+          packageName = if pname == null then "codex-desktop${packageSuffix featureArgs}" else pname;
           payload = mkCodexDesktopPayload {
             inherit enableComputerUseUi linuxFeatureIds;
           };
         in
         pkgs.stdenv.mkDerivation {
-          pname = "codex-desktop${packageSuffix featureArgs}";
+          pname = packageName;
           version = codexVersion;
           src = payload;
 
@@ -512,13 +513,15 @@ PY
           enableComputerUseUi = true;
         };
 
-        codexDesktopRemoteMobileControl = mkCodexDesktop {
-          linuxFeatureIds = [ "remote-mobile-control" ];
+        codexDesktopRemoteControl = mkCodexDesktop {
+          pname = "codex-desktop-remote-control";
+          linuxFeatureIds = [ "remote-mobile-control" "remote-control-ui" ];
         };
 
-        codexDesktopComputerUseUiRemoteMobileControl = mkCodexDesktop {
+        codexDesktopComputerUseUiRemoteControl = mkCodexDesktop {
+          pname = "codex-desktop-computer-use-ui-remote-control";
           enableComputerUseUi = true;
-          linuxFeatureIds = [ "remote-mobile-control" ];
+          linuxFeatureIds = [ "remote-mobile-control" "remote-control-ui" ];
         };
 
         installer = pkgs.writeShellApplication {
@@ -567,8 +570,8 @@ PY
           default = codexDesktop;
           codex-desktop = codexDesktop;
           codex-desktop-computer-use-ui = codexDesktopComputerUseUi;
-          codex-desktop-remote-mobile-control = codexDesktopRemoteMobileControl;
-          codex-desktop-computer-use-ui-remote-mobile-control = codexDesktopComputerUseUiRemoteMobileControl;
+          codex-desktop-remote-control = codexDesktopRemoteControl;
+          codex-desktop-computer-use-ui-remote-control = codexDesktopComputerUseUiRemoteControl;
           installer = installer;
         };
 
@@ -577,14 +580,14 @@ PY
           program = "${codexDesktop}/bin/codex-desktop";
         };
 
-        apps.remote-mobile-control = {
+        apps.remote-control = {
           type = "app";
-          program = "${codexDesktopRemoteMobileControl}/bin/codex-desktop";
+          program = "${codexDesktopRemoteControl}/bin/codex-desktop";
         };
 
-        apps.computer-use-ui-remote-mobile-control = {
+        apps.computer-use-ui-remote-control = {
           type = "app";
-          program = "${codexDesktopComputerUseUiRemoteMobileControl}/bin/codex-desktop";
+          program = "${codexDesktopComputerUseUiRemoteControl}/bin/codex-desktop";
         };
 
         apps.installer = {

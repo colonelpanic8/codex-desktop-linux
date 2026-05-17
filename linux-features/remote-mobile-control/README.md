@@ -15,18 +15,19 @@ building:
 }
 ```
 
-For the Nix flake build, use the declarative app variant instead because the
-git-ignored `features.json` file is not part of the flake source:
+For the Nix flake build, use the declarative remote-control app variant instead
+because the git-ignored `features.json` file is not part of the flake source.
+The Nix variant enables this host-enrollment feature together with the remote
+control UI gates:
 
 ```bash
-nix run .#remote-mobile-control
+nix run .#remote-control
 ```
 
-Feature-specific Nix outputs are additive. To combine this feature with the
-Computer Use UI opt-in:
+To combine the Computer Use UI with the full experimental remote-control set:
 
 ```bash
-nix run .#computer-use-ui-remote-mobile-control
+nix run .#computer-use-ui-remote-control
 ```
 
 What it changes:
