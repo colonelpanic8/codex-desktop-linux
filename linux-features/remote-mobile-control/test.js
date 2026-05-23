@@ -85,6 +85,17 @@ function syntheticCurrentClientEnrollmentBundle() {
   ].join("");
 }
 
+function syntheticLatestClientEnrollmentBundle() {
+  return [
+    "async function kf({appServerClient:e,desktopApiOptions:t,deviceKeyClient:n,globalState:r}){let i=Bf(await Mf({action:`check remote control authorization`,appServerClient:e,desktopApiOptions:t}));if(i.tokenAccountUserId==null)return{clientAuthorized:!1,clientId:null};let a=await ep({authIdentity:i,connectionKey:Af(t),deviceKeyClient:n,globalState:r});return{clientAuthorized:a!=null,clientId:a?.record.clientId??null}}",
+    "function Af(e){return[e.desktopOriginator,e.devApiBaseUrl,e.prodApiBaseUrl].join(`\\n`)}",
+    "function jf(e,t){return`${e}\\n${t}`}",
+    "async function Mf({action:e=`connect remote control environments`,appServerClient:t,desktopApiOptions:n,headers:r}){return Yd({action:e,appServerClient:t,desktopOriginator:n.desktopOriginator,headers:r})}",
+    "async function Nf({appServerClient:e,deviceKeyClient:t,desktopApiOptions:n,enrollmentKey:r,globalState:i,headers:a,requestRemoteControlEnrollmentStepUpToken:o}){let s=Bf(a),c=s.tokenAccountUserId;if(c==null)throw Error(`Remote control enrollment requires the current ChatGPT account user id.`);let l=s.tokenAccountId??s.headerChatGptAccountId,u=await ep({authIdentity:s,connectionKey:r,deviceKeyClient:t,globalState:i}),d=u?.record??null,f=u?.key??jf(r,c),p=d,m;if(p==null){if(o==null)throw Error(`Remote control enrollment requires explicit authorization in settings.`);bf().info(`remote_control_client_enrollment_start_request`,{...Vf({authIdentity:s,hasExistingEnrollment:!1})});let u=await Yf({appServerClient:e,body:{},desktopApiOptions:n,headers:a});if(bf().info(`remote_control_client_enrollment_start_response`,{...Vf({authIdentity:s,hasExistingEnrollment:!1,responseAccountUserId:u.account_user_id,responseClientId:u.client_id,responseChallengeId:u.device_key_challenge.challenge_id})}),u.account_user_id!==c&&!(s.tokenAccountId!=null&&s.headerChatGptAccountId===s.tokenAccountId&&s.tokenAuthUserId===u.account_user_id))throw bf().warning(`remote_control_client_enrollment_start_account_mismatch`,{...Vf({authIdentity:s,hasExistingEnrollment:!1,responseAccountUserId:u.account_user_id,responseClientId:u.client_id,responseChallengeId:u.device_key_challenge.challenge_id})}),Error(`Remote control enrollment start does not match current account.`);p=await sp({accountUserId:u.account_user_id,clientId:u.client_id,deviceKeyClient:t});try{if(bf().info(`remote_control_client_enrollment_key_created`,{safe:{algorithm:p.algorithm,protectionClass:p.protectionClass},sensitive:{accountUserId:p.accountUserId,clientId:p.clientId,keyId:p.keyId}}),o==null)throw Error(`Remote control enrollment requires a step-up authorization flow.`);bf().info(`remote_control_client_enrollment_step_up_requested`,{...Vf({authIdentity:s,hasExistingEnrollment:!1,responseAccountUserId:u.account_user_id,responseChallengeId:u.device_key_challenge.challenge_id,responseClientId:u.client_id})});let d=await o({accountId:l}),f=Uf({accountUserId:c,stepUpToken:d}),h=Vf({authIdentity:s,hasExistingEnrollment:!1,responseAccountUserId:u.account_user_id,responseChallengeId:u.device_key_challenge.challenge_id,responseClientId:u.client_id});bf().info(`remote_control_client_enrollment_step_up_validated`,{safe:{...h.safe,stepUpTokenScopes:f.scopes},sensitive:{...h.sensitive,stepUpIssuedAt:f.issuedAt,stepUpPasswordAuthTime:f.passwordAuthTime,stepUpTokenAccountUserId:f.accountUserId}})}}",
+    "function Uf({accountUserId:t,stepUpToken:n}){let r=Kf(n);Gf({payload:r});let i=e.J.parse(r),a=i[`https://api.openai.com/auth`],o=a.chatgpt_account_user_id??a.account_user_id,s=Wf(i);if(o!==t)throw new Sf;if(Math.floor(Date.now()/1e3)-i.iat>wf)throw Error(`Remote control enrollment step-up token is not fresh.`);if(Date.now()-i.pwd_auth_time>wf*1e3)throw Error(`Remote control enrollment step-up token does not have fresh password auth.`);if(s.length!==1||s[0]!==Cf)throw Error(`Remote control enrollment step-up token is missing required authorization.`);return{accountUserId:o??null,issuedAt:i.iat,passwordAuthTime:i.pwd_auth_time,scopes:s}}",
+  ].join("");
+}
+
 function syntheticRecoverableErrorPredicateBundle() {
   return "function Bd(e){return e instanceof Error?e.message.startsWith(`Remote control request failed (404):`)||e.message===`Remote control request failed (401): Remote-control client enrollment is incomplete`||e.message===`Remote control request failed (403): Remote-control client key material missing`:!1}";
 }
@@ -200,6 +211,18 @@ function syntheticChromeBrowserClientBundle() {
   ].join("");
 }
 
+function syntheticCurrentChromeBrowserClientBundle() {
+  return [
+    "var R2=[\"chrome\",\"iab\",\"cdp\"];function Jb(e){return R2.some(t=>t===e)}",
+    "var Yb=\"BROWSER_USE_AVAILABLE_BACKENDS\",ey=\"BROWSER_USE_MARKETPLACE_NAME\";",
+    "function oy(){let e=lu(Yb);return e==null?null:ly(e).filter(Jb)}",
+    "function sy(){let e=lu(ey)?.trim();return e||void 0}",
+    "function lu(e){let t=globalThis.nodeRepl?.env[e];return typeof t==\"string\"?t:void 0}",
+    "function ly(e){return(e??\"\").split(\",\").map(t=>t.trim()).filter(Boolean)}",
+    "function eh(){let e=sy();return e?`privileged native pipe bridge is not available; browser-client is not trusted. Load browser-client from the ${e} marketplace directory.`:\"privileged native pipe bridge is not available; browser-client is not trusted\"}",
+  ].join("");
+}
+
 function syntheticAppServerManagerSignalsBundle() {
   return [
     "function Of({conversationId:e,conversations:t,getWorkspaceBrowserRoot:n,getWorkspaceKind:r,hostId:i,setConversation:a,thread:o,threadsById:s,updateConversationState:c}){let p=o.status??null;if(t.has(e)){c(e,e=>{e.resumeState===`needs_resume`&&(e.threadRuntimeStatus=p)});return}}",
@@ -297,20 +320,18 @@ function coldStartTestEnv(env) {
 }
 
 function runColdStartHook(env) {
-  const tempBin = fs.mkdtempSync(path.join(os.tmpdir(), "codex-remote-mobile-cold-start-bin-"));
+  const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "codex-remote-mobile-test-bin-"));
+  fs.writeFileSync(path.join(fakeBin, "systemctl"), "#!/usr/bin/env sh\nexit 3\n");
+  fs.chmodSync(path.join(fakeBin, "systemctl"), 0o755);
   try {
-    const systemctl = path.join(tempBin, "systemctl");
-    fs.writeFileSync(systemctl, "#!/usr/bin/env sh\nexit 3\n");
-    fs.chmodSync(systemctl, 0o755);
-
-    const childEnv = coldStartTestEnv(env);
-    childEnv.PATH = `${tempBin}${path.delimiter}${childEnv.PATH ?? ""}`;
+    const hookEnv = coldStartTestEnv(env);
+    hookEnv.PATH = `${fakeBin}${path.delimiter}${hookEnv.PATH ?? ""}`;
     return spawnSync("bash", [path.join(__dirname, "cold-start-hook.sh"), "--run-main"], {
-      env: childEnv,
+      env: hookEnv,
       encoding: "utf8",
     });
   } finally {
-    fs.rmSync(tempBin, { recursive: true, force: true });
+    fs.rmSync(fakeBin, { recursive: true, force: true });
   }
 }
 
@@ -648,6 +669,24 @@ test("Linux remote-control client enrollment handles current upstream account co
   assert.equal(applyLinuxRemoteControlClientAccountCompatibilityPatch(patched), patched);
 });
 
+test("Linux remote-control client enrollment handles latest account compatibility shape", () => {
+  const source = syntheticLatestClientEnrollmentBundle();
+  const patched = applyLinuxRemoteControlClientAccountCompatibilityPatch(source);
+
+  assert.notEqual(patched, source);
+  assert.match(patched, /codexLinuxRemoteControlAccountMatches/);
+  assert.match(patched, /codexLinuxRemoteControlLoadEnrollment/);
+  assert.match(patched, /codexLinuxRemoteControlEnrollmentKey=r/);
+  assert.match(patched, /f=codexLinuxRemoteControlExistingEnrollment\?\.enrollmentRecordKey\?\?jf\(r,c\)/);
+  assert.match(patched, /d=codexLinuxRemoteControlExistingEnrollment\?\.enrollment\?\?null/);
+  assert.match(patched, /p=d,m/);
+  assert.match(patched, /p=await sp\(\{accountUserId:u\.account_user_id,clientId:u\.client_id,deviceKeyClient:t\}\)/);
+  assert.match(patched, /d=await o\(\{accountId:codexLinuxRemoteControlCurrentAccountId\}\)/);
+  assert.match(patched, /f=Uf\(\{accountId:codexLinuxRemoteControlCurrentAccountId,accountUserId:p\.accountUserId,stepUpToken:d\}\)/);
+  assert.match(patched, /clientId:a\?\.enrollment\.clientId\?\?null/);
+  assert.equal(applyLinuxRemoteControlClientAccountCompatibilityPatch(patched), patched);
+});
+
 test("Linux remote-control client revocation triggers local cleanup and re-enrollment", () => {
   const source = syntheticRecoverableErrorPredicateBundle();
   const patched = applyLinuxRemoteControlClientRevocationRecoveryPatch(source);
@@ -923,6 +962,31 @@ test("Linux remote mobile Chrome bridge patch preserves Chrome when request meta
   const nativePipeIndex = patched.indexOf("function codexLinuxRemoteMobileBrowserBridgeDiagnostic");
   const browserBackendsOnly = patched.slice(0, nativePipeIndex) + patched.slice(patched.indexOf("function yC"));
   vm.runInNewContext(`${browserBackendsOnly};module.exports=yC;`, context);
+  assert.deepEqual([...context.module.exports()], ["chrome", "iab"]);
+});
+
+test("Linux remote mobile Chrome bridge patch preserves Chrome when env narrows browser backends", () => {
+  const source = syntheticCurrentChromeBrowserClientBundle();
+  const patched = applyLinuxRemoteMobileChromeBridgePatch(source);
+
+  assert.notEqual(patched, source);
+  assert.match(patched, /codexLinuxRemoteMobileBrowserBackends/);
+  assert.match(patched, /BROWSER_USE_AVAILABLE_BACKENDS environment include chrome/);
+  assert.equal(applyLinuxRemoteMobileChromeBridgePatch(patched), patched);
+
+  const context = {
+    globalThis: {
+      nodeRepl: {
+        env: {
+          BROWSER_USE_AVAILABLE_BACKENDS: "iab",
+        },
+      },
+    },
+    module: { exports: {} },
+    process: { platform: "linux" },
+  };
+  context.globalThis.globalThis = context.globalThis;
+  vm.runInNewContext(`${patched};module.exports=oy;`, context);
   assert.deepEqual([...context.module.exports()], ["chrome", "iab"]);
 });
 

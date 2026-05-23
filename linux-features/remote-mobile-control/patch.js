@@ -200,16 +200,6 @@ function applyLinuxRemoteControlClientAccountCompatibilityPatch(source) {
     return source;
   }
 
-  if (
-    source.includes("function ep({authIdentity:e,connectionKey:t,deviceKeyClient:n,globalState:r})") &&
-    source.includes("Promise.all(tp(e).map(async e=>{let i=jf(t,e);") &&
-    source.includes("function tp(e){if(e.tokenAccountUserId==null)return[];") &&
-    source.includes("tokenAuthUserId!==e.tokenAccountUserId&&t.push(e.tokenAuthUserId)") &&
-    source.includes("u.account_user_id!==c&&!(s.tokenAccountId!=null&&s.headerChatGptAccountId===s.tokenAccountId&&s.tokenAuthUserId===u.account_user_id)")
-  ) {
-    return source;
-  }
-
   if (!source.includes("Remote control enrollment start does not match current account.")) {
     return source;
   }
@@ -230,27 +220,36 @@ function applyLinuxRemoteControlClientAccountCompatibilityPatch(source) {
       `([A-Za-z_$][\\w$]*)=\\7,([A-Za-z_$][\\w$]*);`,
     "u",
   );
+  const currentEnrollmentStartRegex = new RegExp(
+    `let ([A-Za-z_$][\\w$]*)=([A-Za-z_$][\\w$]*)\\(([A-Za-z_$][\\w$]*)\\),([A-Za-z_$][\\w$]*)=\\1\\.tokenAccountUserId;` +
+      `if\\(\\4==null\\)throw Error\\(\`Remote control enrollment requires the current ChatGPT account user id\\.\`\\);` +
+      `let ([A-Za-z_$][\\w$]*)=\\1\\.tokenAccountId\\?\\?\\1\\.headerChatGptAccountId,` +
+      `([A-Za-z_$][\\w$]*)=await ([A-Za-z_$][\\w$]*)\\(\\{authIdentity:\\1,connectionKey:([A-Za-z_$][\\w$]*),deviceKeyClient:([A-Za-z_$][\\w$]*),globalState:([A-Za-z_$][\\w$]*)\\}\\),` +
+      `([A-Za-z_$][\\w$]*)=\\6\\?\\.record\\?\\?null,` +
+      `([A-Za-z_$][\\w$]*)=\\6\\?\\.key\\?\\?${enrollmentKeyFn}\\(\\8,\\4\\),` +
+      `([A-Za-z_$][\\w$]*)=\\11,([A-Za-z_$][\\w$]*);`,
+    "u",
+  );
   const startMatch = source.match(enrollmentStartRegex);
-  if (startMatch == null) {
+  const currentStartMatch = startMatch == null ? source.match(currentEnrollmentStartRegex) : null;
+  if (startMatch == null && currentStartMatch == null) {
     console.warn("WARN: Could not find remote-control enrollment start shape - skipping account compatibility patch");
     return source;
   }
 
-  const [
-    startNeedle,
-    authIdentityVar,
-    authIdentityFn,
-    headersVar,
-    tokenAccountUserIdVar,
-    enrollmentRecordKeyVar,
-    enrollmentKeyVar,
-    loadedEnrollmentVar,
-    loadEnrollmentFn,
-    deviceKeyClientVar,
-    globalStateVar,
-    enrollmentVar,
-    tokenResponseVar,
-  ] = startMatch;
+  const startNeedle = (startMatch ?? currentStartMatch)[0];
+  const authIdentityVar = (startMatch ?? currentStartMatch)[1];
+  const authIdentityFn = (startMatch ?? currentStartMatch)[2];
+  const headersVar = (startMatch ?? currentStartMatch)[3];
+  const tokenAccountUserIdVar = (startMatch ?? currentStartMatch)[4];
+  const enrollmentRecordKeyVar = startMatch != null ? startMatch[5] : currentStartMatch[12];
+  const enrollmentKeyVar = startMatch != null ? startMatch[6] : currentStartMatch[8];
+  const loadedEnrollmentVar = startMatch != null ? startMatch[7] : currentStartMatch[11];
+  const loadEnrollmentFn = startMatch != null ? startMatch[8] : currentStartMatch[7];
+  const deviceKeyClientVar = startMatch != null ? startMatch[9] : currentStartMatch[9];
+  const globalStateVar = startMatch != null ? startMatch[10] : currentStartMatch[10];
+  const enrollmentVar = startMatch != null ? startMatch[11] : currentStartMatch[13];
+  const tokenResponseVar = startMatch != null ? startMatch[12] : currentStartMatch[14];
 
   const stepUpValidatorRegex =
     /function ([A-Za-z_$][\w$]*)\(\{accountUserId:([A-Za-z_$][\w$]*),stepUpToken:([A-Za-z_$][\w$]*)\}\)\{let ([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\3\);([A-Za-z_$][\w$]*)\(\{payload:\4\}\);let ([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\.parse\(\4\),([A-Za-z_$][\w$]*)=\7\[`https:\/\/api\.openai\.com\/auth`\],([A-Za-z_$][\w$]*)=\9\.chatgpt_account_user_id\?\?\9\.account_user_id,([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\7\);if\(\10!==\2\)throw (?:Error\(`Remote control enrollment step-up token does not match current account\.`\)|new [A-Za-z_$][\w$]*);if\(Math\.floor\(Date\.now\(\)\/1e3\)-\7\.iat>([A-Za-z_$][\w$]*)\)throw Error\(`Remote control enrollment step-up token is not fresh\.`\);if\(Date\.now\(\)-\7\.pwd_auth_time>\13\*1e3\)throw Error\(`Remote control enrollment step-up token does not have fresh password auth\.`\);if\(\11\.length!==1\|\|\11\[0\]!==([A-Za-z_$][\w$]*)\)throw Error\(`Remote control enrollment step-up token is missing required authorization\.`\);return\{accountUserId:\10\?\?null,issuedAt:\7\.iat,passwordAuthTime:\7\.pwd_auth_time,scopes:\11\}\}/u;
@@ -341,7 +340,7 @@ function applyLinuxRemoteControlClientAccountCompatibilityPatch(source) {
   );
 
   const stepUpCallRegex = new RegExp(
-    `let ([A-Za-z_$][\\w$]*)=await ([A-Za-z_$][\\w$]*)\\(\\),([A-Za-z_$][\\w$]*)=${escapeRegExp(stepUpValidatorFn)}\\(\\{accountUserId:${escapeRegExp(tokenAccountUserIdVar)},stepUpToken:\\1\\}\\),`,
+    `let ([A-Za-z_$][\\w$]*)=await ([A-Za-z_$][\\w$]*)\\((?:\\{accountId:[A-Za-z_$][\\w$]*\\})?\\),([A-Za-z_$][\\w$]*)=${escapeRegExp(stepUpValidatorFn)}\\(\\{accountUserId:${escapeRegExp(tokenAccountUserIdVar)},stepUpToken:\\1\\}\\),`,
     "u",
   );
   const stepUpCallMatch = patched.match(stepUpCallRegex);
@@ -381,15 +380,36 @@ function applyLinuxRemoteControlClientAccountCompatibilityPatch(source) {
         `return\\{clientAuthorized:\\9!=null,clientId:\\9\\?\\.clientId\\?\\?null\\}\\}`,
       "u",
     );
+  const currentAuthorizationCheckRegex =
+    new RegExp(
+      `async function ([A-Za-z_$][\\w$]*)\\(\\{appServerClient:([A-Za-z_$][\\w$]*),desktopApiOptions:([A-Za-z_$][\\w$]*),deviceKeyClient:([A-Za-z_$][\\w$]*),globalState:([A-Za-z_$][\\w$]*)\\}\\)\\{` +
+        `let ([A-Za-z_$][\\w$]*)=([A-Za-z_$][\\w$]*)\\(await ([A-Za-z_$][\\w$]*)\\(\\{action:\`check remote control authorization\`,appServerClient:\\2,desktopApiOptions:\\3\\}\\)\\);` +
+        `if\\(\\6\\.tokenAccountUserId==null\\)return\\{clientAuthorized:!1,clientId:null\\};` +
+        `let ([A-Za-z_$][\\w$]*)=await ([A-Za-z_$][\\w$]*)\\(\\{authIdentity:\\6,connectionKey:([A-Za-z_$][\\w$]*)\\(\\3\\),deviceKeyClient:\\4,globalState:\\5\\}\\);` +
+        `return\\{clientAuthorized:\\9!=null,clientId:\\9\\?\\.record\\.clientId\\?\\?null\\}\\}`,
+      "u",
+    );
   const authorizationCheckMatch = patched.match(authorizationCheckRegex);
-  if (authorizationCheckMatch == null) {
+  const currentAuthorizationCheckMatch =
+    authorizationCheckMatch == null ? patched.match(currentAuthorizationCheckRegex) : null;
+  if (authorizationCheckMatch == null && currentAuthorizationCheckMatch == null) {
     console.warn("WARN: Could not find remote-control authorization status check - skipping account compatibility patch");
     return source;
   }
-  const [, authCheckFn, appServerClientVar, desktopApiOptionsVar, authDeviceKeyClientVar, authGlobalStateVar, authStatusIdentityVar, authStatusIdentityFn, authHeadersFn, enrollmentVarForStatus, , statusBaseEnrollmentKeyFn] =
-    authorizationCheckMatch;
+  const authCheckFn = (authorizationCheckMatch ?? currentAuthorizationCheckMatch)[1];
+  const appServerClientVar = (authorizationCheckMatch ?? currentAuthorizationCheckMatch)[2];
+  const desktopApiOptionsVar = (authorizationCheckMatch ?? currentAuthorizationCheckMatch)[3];
+  const authDeviceKeyClientVar = (authorizationCheckMatch ?? currentAuthorizationCheckMatch)[4];
+  const authGlobalStateVar = (authorizationCheckMatch ?? currentAuthorizationCheckMatch)[5];
+  const authStatusIdentityVar = (authorizationCheckMatch ?? currentAuthorizationCheckMatch)[6];
+  const authStatusIdentityFn = (authorizationCheckMatch ?? currentAuthorizationCheckMatch)[7];
+  const authHeadersFn = (authorizationCheckMatch ?? currentAuthorizationCheckMatch)[8];
+  const enrollmentVarForStatus =
+    authorizationCheckMatch != null ? authorizationCheckMatch[9] : currentAuthorizationCheckMatch[9];
+  const statusBaseEnrollmentKeyFn =
+    authorizationCheckMatch != null ? authorizationCheckMatch[11] : currentAuthorizationCheckMatch[11];
   patched = patched.replace(
-    authorizationCheckRegex,
+    authorizationCheckMatch != null ? authorizationCheckRegex : currentAuthorizationCheckRegex,
     `async function ${authCheckFn}({appServerClient:${appServerClientVar},desktopApiOptions:${desktopApiOptionsVar},deviceKeyClient:${authDeviceKeyClientVar},globalState:${authGlobalStateVar}}){let ${authStatusIdentityVar}=${authStatusIdentityFn}(await ${authHeadersFn}({action:\`check remote control authorization\`,appServerClient:${appServerClientVar},desktopApiOptions:${desktopApiOptionsVar}}));if(${authStatusIdentityVar}.tokenAccountUserId==null)return{clientAuthorized:!1,clientId:null};let ${enrollmentVarForStatus}=await codexLinuxRemoteControlLoadEnrollment({authIdentity:${authStatusIdentityVar},deviceKeyClient:${authDeviceKeyClientVar},enrollmentKey:${statusBaseEnrollmentKeyFn}(${desktopApiOptionsVar}),globalState:${authGlobalStateVar}});return{clientAuthorized:${enrollmentVarForStatus}!=null,clientId:${enrollmentVarForStatus}?.enrollment.clientId??null}}`,
   );
 
@@ -636,15 +656,6 @@ function replaceLinuxRemoteControlCopy(source) {
 function applyLinuxRemoteControlCopyPatch(source) {
   const { patched, changed } = replaceLinuxRemoteControlCopy(source);
   if (!changed) {
-    if (
-      !source.includes("this Mac") &&
-      !source.includes("Keep this Mac awake") &&
-      !source.includes("Control this Mac") &&
-      !source.includes("local Mac") &&
-      !source.includes("settings.remoteConnections")
-    ) {
-      return source;
-    }
     console.warn("WARN: Could not find remote-control Mac copy - skipping Linux remote-control copy patch");
     return source;
   }
@@ -751,6 +762,7 @@ function applyLinuxRemoteMobileChromeBridgePatch(source) {
     return source;
   }
 
+  let patched = source;
   const backendNeedle =
     "var tE=\"x-codex-browser-use-available-backends\",X6=[\"chrome\",\"iab\",\"cdp\"];function rE(t){return X6.some(e=>e===t)}";
   const backendReplacement =
@@ -759,22 +771,36 @@ function applyLinuxRemoteMobileChromeBridgePatch(source) {
     "function yC(){let t=globalThis.nodeRepl?.requestMeta?.[tE];return t==null?null:Array.isArray(t)?t.filter(rE):[]}";
   const currentBackendReplacement =
     "function yC(){let t=globalThis.nodeRepl?.requestMeta?.[tE];return codexLinuxRemoteMobileBrowserBackends(t)}";
+  const envBackendNeedle =
+    "var R2=[\"chrome\",\"iab\",\"cdp\"];function Jb(e){return R2.some(t=>t===e)}";
+  const envBackendReplacement =
+    "var R2=[\"chrome\",\"iab\",\"cdp\"];function Jb(e){return R2.some(t=>t===e)}function codexLinuxRemoteMobileBrowserBackends(e){if(e==null)return null;let t=typeof e==`string`?ly(e):Array.isArray(e)?e:[],r=t.filter(Jb);return typeof process!=`undefined`&&process.platform===`linux`&&!r.includes(`chrome`)?[`chrome`,...r]:r}";
+  const currentEnvBackendNeedle = "function oy(){let e=lu(Yb);return e==null?null:ly(e).filter(Jb)}";
+  const currentEnvBackendReplacement = "function oy(){let e=lu(Yb);return codexLinuxRemoteMobileBrowserBackends(e)}";
 
-  if (!source.includes(backendNeedle) || !source.includes(currentBackendNeedle)) {
+  if (patched.includes(backendNeedle) && patched.includes(currentBackendNeedle)) {
+    patched = patched.replace(backendNeedle, backendReplacement).replace(currentBackendNeedle, currentBackendReplacement);
+  } else if (patched.includes(envBackendNeedle) && patched.includes(currentEnvBackendNeedle)) {
+    patched = patched
+      .replace(envBackendNeedle, envBackendReplacement)
+      .replace(currentEnvBackendNeedle, currentEnvBackendReplacement);
+  } else {
     console.warn("WARN: Could not find Chrome browser-client backend allowlist needles - skipping remote-mobile Chrome bridge patch");
     return source;
   }
-
-  let patched = source
-    .replace(backendNeedle, backendReplacement)
-    .replace(currentBackendNeedle, currentBackendReplacement);
 
   const nativePipeNeedle =
     "function Cm(){let t=import.meta.__codexNativePipeUnavailableMessage;return typeof t==\"string\"&&t.length>0?t:\"privileged native pipe bridge is not available; browser-client is not trusted\"}";
   const nativePipeReplacement =
     "function codexLinuxRemoteMobileBrowserBridgeDiagnostic(e){return typeof process!=`undefined`&&process.platform===`linux`?`${e}; Chrome bridge was not exposed to this remote/mobile session. Check that the Chrome plugin, native host manifest, and x-codex-browser-use-available-backends request metadata include chrome.`:e}function Cm(){let t=import.meta.__codexNativePipeUnavailableMessage,e=typeof t==\"string\"&&t.length>0?t:\"privileged native pipe bridge is not available; browser-client is not trusted\";return codexLinuxRemoteMobileBrowserBridgeDiagnostic(e)}";
+  const envNativePipeNeedle =
+    "function eh(){let e=sy();return e?`privileged native pipe bridge is not available; browser-client is not trusted. Load browser-client from the ${e} marketplace directory.`:\"privileged native pipe bridge is not available; browser-client is not trusted\"}";
+  const envNativePipeReplacement =
+    "function codexLinuxRemoteMobileBrowserBridgeDiagnostic(e){return typeof process!=`undefined`&&process.platform===`linux`?`${e}; Chrome bridge was not exposed to this remote/mobile session. Check that the Chrome plugin, native host manifest, and BROWSER_USE_AVAILABLE_BACKENDS environment include chrome.`:e}function eh(){let e=sy(),t=e?`privileged native pipe bridge is not available; browser-client is not trusted. Load browser-client from the ${e} marketplace directory.`:\"privileged native pipe bridge is not available; browser-client is not trusted\";return codexLinuxRemoteMobileBrowserBridgeDiagnostic(t)}";
   if (patched.includes(nativePipeNeedle)) {
     patched = patched.replace(nativePipeNeedle, nativePipeReplacement);
+  } else if (patched.includes(envNativePipeNeedle)) {
+    patched = patched.replace(envNativePipeNeedle, envNativePipeReplacement);
   } else {
     console.warn("WARN: Could not find Chrome browser-client native pipe diagnostic needle - leaving default bridge diagnostic unchanged");
   }

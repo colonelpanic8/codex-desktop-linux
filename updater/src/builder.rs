@@ -335,6 +335,8 @@ fn managed_node_bin_dirs(builder_bundle_root: &Path) -> Vec<PathBuf> {
 
 fn system_bin_dirs() -> Vec<PathBuf> {
     [
+        "/run/current-system/sw/bin",
+        "/nix/var/nix/profiles/default/bin",
         "/usr/local/sbin",
         "/usr/local/bin",
         "/usr/sbin",
@@ -446,21 +448,21 @@ mod tests {
     fn write_fake_build_script(path: &Path, output: FakePackageOutput) -> Result<()> {
         let script_body = match output {
             FakePackageOutput::Deb => {
-                r#"#!/bin/bash
+                r#"#!/usr/bin/env bash
 set -euo pipefail
 mkdir -p "${DIST_DIR_OVERRIDE}"
 touch "${DIST_DIR_OVERRIDE}/codex-desktop_${PACKAGE_VERSION}_amd64.deb"
 "#
             }
             FakePackageOutput::Rpm => {
-                r#"#!/bin/bash
+                r#"#!/usr/bin/env bash
 set -euo pipefail
 mkdir -p "${DIST_DIR_OVERRIDE}"
 touch "${DIST_DIR_OVERRIDE}/codex-desktop-${PACKAGE_VERSION}.x86_64.rpm"
 "#
             }
             FakePackageOutput::Pacman => {
-                r#"#!/bin/bash
+                r#"#!/usr/bin/env bash
 set -euo pipefail
 VER="${PACKAGE_VERSION%%+*}"
 mkdir -p "${DIST_DIR_OVERRIDE}"
@@ -607,7 +609,7 @@ touch "${DIST_DIR_OVERRIDE}/codex-desktop-${VER}-1-x86_64.pkg.tar.zst"
         )?;
         fs::write(
             bundle_root.join("install.sh"),
-            r#"#!/bin/bash
+            r#"#!/usr/bin/env bash
 set -euo pipefail
 mkdir -p "${CODEX_INSTALL_DIR}"
 echo launcher > "${CODEX_INSTALL_DIR}/start.sh"
