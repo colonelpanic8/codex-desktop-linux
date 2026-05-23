@@ -658,13 +658,14 @@ function applyLinuxBuildInfoTrayPatch(currentSource) {
     return currentSource;
   }
 
-  const trayMenuRegex = /getNativeTrayMenuItems\(\)\{return\[/g;
-  if (!trayMenuRegex.test(currentSource)) {
+  const trayMenuRegex = /getNativeTrayMenuItems\(\)\{[^]*?return\[/g;
+  const trayMenuMatch = currentSource.match(trayMenuRegex);
+  if (trayMenuMatch == null) {
     console.warn("WARN: Could not find tray menu items method — skipping Linux build info tray patch");
     return currentSource;
   }
 
-  const classRegex = /var [A-Za-z_$][\w$]*=class\{[^]*?getNativeTrayMenuItems\(\)\{return\[/;
+  const classRegex = /var [A-Za-z_$][\w$]*=class\{[^]*?getNativeTrayMenuItems\(\)\{[^]*?return\[/;
   const classMatch = currentSource.match(classRegex);
   if (classMatch == null || classMatch.index == null) {
     console.warn("WARN: Could not find tray class insertion point — skipping Linux build info tray patch");
@@ -674,7 +675,7 @@ function applyLinuxBuildInfoTrayPatch(currentSource) {
   const helpers = buildLinuxBuildInfoHelpers(electronVar, fsVar, pathVar);
   const menuPrefix =
     "...process.platform===`linux`?[{label:`Build Information`,click:()=>{codexLinuxShowBuildInfo()}},{type:`separator`}]:[],";
-  const withMenuItem = currentSource.replace(trayMenuRegex, `getNativeTrayMenuItems(){return[${menuPrefix}`);
+  const withMenuItem = currentSource.replace(trayMenuRegex, (match) => `${match}${menuPrefix}`);
   return `${withMenuItem.slice(0, classMatch.index)}${helpers};${withMenuItem.slice(classMatch.index)}`;
 }
 
