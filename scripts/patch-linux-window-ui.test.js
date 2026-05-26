@@ -1326,6 +1326,7 @@ test("adds Linux build information to the app Help menu", () => {
   const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, source);
 
   assert.match(patched, /function codexLinuxShowBuildInfo\(\)/);
+  assert.doesNotThrow(() => new Function(patched));
   assert.match(
     patched,
     /\{role:`help`,id:e\.bn\.help,submenu:\[\.\.\.process\.platform===`linux`\?\[\{label:`Build Information`,click:\(\)=>\{codexLinuxShowBuildInfo\(\)\}\},\{type:`separator`\}\]:\[\],\{label:`Codex Documentation`/,
