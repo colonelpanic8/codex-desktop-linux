@@ -1320,6 +1320,18 @@ test("adds Linux build information to current tray menu shape", () => {
   );
 });
 
+test("adds Linux build information to the app Help menu", () => {
+  const source =
+    "let n=require(`electron`),o=require(`node:fs`),i=require(`node:path`),e={bn:{help:`help`}};let $e=[{role:`help`,id:e.bn.help,submenu:[{label:`Codex Documentation`,click:()=>{n.shell.openExternal(`https://developers.openai.com/codex/app`)}}]}],et=n.Menu.buildFromTemplate($e);n.Menu.setApplicationMenu(et);";
+  const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, source);
+
+  assert.match(patched, /function codexLinuxShowBuildInfo\(\)/);
+  assert.match(
+    patched,
+    /\{role:`help`,id:e\.bn\.help,submenu:\[\.\.\.process\.platform===`linux`\?\[\{label:`Build Information`,click:\(\)=>\{codexLinuxShowBuildInfo\(\)\}\},\{type:`separator`\}\]:\[\],\{label:`Codex Documentation`/,
+  );
+});
+
 test("adds Linux tray support for current minified window and startup identifiers", () => {
   const source = [
     "v&&j.on(`close`,e=>{this.persistPrimaryWindowBounds(j,f);let t=this.getPrimaryWindows(f).some(e=>e!==j);if(process.platform===`win32`&&!this.isAppQuitting&&this.options.canHideLastLocalWindowToTray?.()===!0&&!t){e.preventDefault(),j.hide();return}});",

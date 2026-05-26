@@ -646,37 +646,62 @@ function buildLinuxBuildInfoHelpers(electronVar, fsVar, pathVar) {
 }
 
 function applyLinuxBuildInfoTrayPatch(currentSource) {
-  if (currentSource.includes("function codexLinuxShowBuildInfo()")) {
-    return currentSource;
-  }
-
   const electronVar = requireName(currentSource, "electron");
   const fsVar = requireName(currentSource, "node:fs");
   const pathVar = requireName(currentSource, "node:path");
-  if (electronVar == null || fsVar == null || pathVar == null) {
+  const hasHelper = currentSource.includes("function codexLinuxShowBuildInfo()");
+  if (!hasHelper && (electronVar == null || fsVar == null || pathVar == null)) {
     console.warn("WARN: Could not find build info module bindings — skipping Linux build info tray patch");
     return currentSource;
   }
 
+  let patchedSource = currentSource;
+  let changed = false;
   const trayMenuRegex = /getNativeTrayMenuItems\(\)\{[^]*?return\[/g;
-  const trayMenuMatch = currentSource.match(trayMenuRegex);
-  if (trayMenuMatch == null) {
+  const trayMenuMatch = patchedSource.match(trayMenuRegex);
+  if (trayMenuMatch == null && !patchedSource.includes("role:`help`")) {
     console.warn("WARN: Could not find tray menu items method — skipping Linux build info tray patch");
-    return currentSource;
+  } else if (
+    trayMenuMatch != null &&
+    !/getNativeTrayMenuItems\(\)\{[^]*?label:`Build Information`,click:\(\)=>\{codexLinuxShowBuildInfo\(\)\}/.test(patchedSource)
+  ) {
+    const menuPrefix =
+      "...process.platform===`linux`?[{label:`Build Information`,click:()=>{codexLinuxShowBuildInfo()}},{type:`separator`}]:[],";
+    patchedSource = patchedSource.replace(trayMenuRegex, (match) => `${match}${menuPrefix}`);
+    changed = true;
+  }
+
+  const helpMenuPattern = /\{role:`help`,id:[A-Za-z_$][\w$]*\.bn\.help,submenu:\[/;
+  const helpMenuRegex = /\{role:`help`,id:[A-Za-z_$][\w$]*\.bn\.help,submenu:\[/g;
+  if (
+    !/\{role:`help`,id:[A-Za-z_$][\w$]*\.bn\.help,submenu:\[\.\.\.process\.platform===`linux`\?\[\{label:`Build Information`,click:\(\)=>\{codexLinuxShowBuildInfo\(\)\}\},\{type:`separator`\}\]:\[\],/.test(patchedSource)
+  ) {
+    let patchedHelpMenu = false;
+    patchedSource = patchedSource.replace(helpMenuRegex, (match) => {
+      patchedHelpMenu = true;
+      return `${match}...process.platform===\`linux\`?[{label:\`Build Information\`,click:()=>{codexLinuxShowBuildInfo()}},{type:\`separator\`}]:[],`;
+    });
+    changed = changed || patchedHelpMenu;
+    if (!patchedHelpMenu && patchedSource.includes("role:`help`")) {
+      console.warn("WARN: Could not find Help menu insertion point — skipping Linux build info app menu patch");
+    }
+  }
+
+  if (!changed || hasHelper) {
+    return patchedSource;
   }
 
   const classRegex = /var [A-Za-z_$][\w$]*=class\{[^]*?getNativeTrayMenuItems\(\)\{[^]*?return\[/;
-  const classMatch = currentSource.match(classRegex);
-  if (classMatch == null || classMatch.index == null) {
-    console.warn("WARN: Could not find tray class insertion point — skipping Linux build info tray patch");
+  const classMatch = patchedSource.match(classRegex);
+  const helpMenuMatch = patchedSource.match(helpMenuPattern);
+  const helperIndex = classMatch?.index ?? helpMenuMatch?.index;
+  if (helperIndex == null) {
+    console.warn("WARN: Could not find build info helper insertion point — skipping Linux build info patch");
     return currentSource;
   }
 
   const helpers = buildLinuxBuildInfoHelpers(electronVar, fsVar, pathVar);
-  const menuPrefix =
-    "...process.platform===`linux`?[{label:`Build Information`,click:()=>{codexLinuxShowBuildInfo()}},{type:`separator`}]:[],";
-  const withMenuItem = currentSource.replace(trayMenuRegex, (match) => `${match}${menuPrefix}`);
-  return `${withMenuItem.slice(0, classMatch.index)}${helpers};${withMenuItem.slice(classMatch.index)}`;
+  return `${patchedSource.slice(0, helperIndex)}${helpers};${patchedSource.slice(helperIndex)}`;
 }
 
 function applyLinuxSingleInstancePatch(currentSource) {
