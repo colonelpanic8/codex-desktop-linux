@@ -13,12 +13,32 @@ the next bot run and retry.
 
 ## Codex CLI Requirement
 
-Codex Desktop still needs the Codex CLI at runtime. For Nix installs, prefer
-installing the CLI from Nix as well, so Desktop and CLI updates can be pinned
-and advanced together.
+Codex Desktop still needs the Codex CLI at runtime. The Nix package in this
+repository does not install or maintain the CLI for you; it only needs a
+working `codex` binary. Put `codex` on your user `PATH`, or set
+`CODEX_CLI_PATH` to the exact binary that Codex Desktop should launch.
 
-The `sadjow/codex-cli-nix` flake tracks Codex CLI releases and exposes Nix
-packages for the native binary and Node.js builds:
+One direct upstream install path is the npm package:
+
+```bash
+npm i -g @openai/codex
+```
+
+### Community Nix CLI Packages
+
+If you want a Nix-native CLI setup, one community-maintained option is the
+`sadjow/codex-cli-nix` flake. It is not part of this repository and is not
+maintained by this project or by OpenAI. We do not control its release cadence,
+build recipe, binary cache, or support policy.
+
+Use it only if that trade-off makes sense for your configuration. Pin it to a
+tag or commit for reproducibility, review the flake and cache trust settings
+before using them, and report package/cache-specific issues to that project.
+Issues in this repository should be limited to Codex Desktop discovering and
+launching a working CLI binary.
+
+The community flake exposes Nix packages for the native binary and Node.js
+builds:
 
 ```bash
 nix run github:sadjow/codex-cli-nix/main
@@ -39,7 +59,10 @@ For a declarative setup, add the CLI flake as an input:
 }
 ```
 
-The flake also publishes a Cachix cache for prebuilt binaries:
+The flake also publishes a third-party Cachix cache for prebuilt binaries. This
+cache is independent from this repository's `codex-desktop-linux` cache. Enabling
+it means trusting substitutes signed by that cache key; omit this step if you
+prefer local builds.
 
 ```bash
 cachix use codex-cli
@@ -106,16 +129,6 @@ If your graphical session does not put the selected profile on `PATH`, set
   home.sessionVariables.CODEX_CLI_PATH = "${codexCli}/bin/codex";
 }
 ```
-
-As a fallback, you can still install the upstream npm package, then make sure
-the resulting `codex` binary is on `PATH` or referenced by `CODEX_CLI_PATH`:
-
-```bash
-npm i -g @openai/codex
-```
-
-This is most useful outside Nix or while recovering from a broken flake input;
-it is not the preferred path for Nix or NixOS users.
 
 If `nix run` appears to do nothing, check the launcher log first:
 
