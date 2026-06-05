@@ -2927,6 +2927,23 @@ test("keeps a fully Linux-enabled Chrome plugin gate unchanged", () => {
   assert.equal(applyPatchTwice(applyLinuxChromePluginAutoInstallPatch, source), source);
 });
 
+test("does not treat unrelated Linux platform checks as Chrome plugin availability", () => {
+  const source = currentPluginGateBundleFixture()
+    .replace(
+      "{forceReload:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:",
+      "{forceReload:!0,installWhenMissing:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:",
+    )
+    .replace(
+      "({buildFlavor:e,features:t})=>t.externalBrowserUseAllowed&&$n(e)}",
+      "function({features:t}){return t.externalBrowserUseAllowed}}",
+    ) + "var __codexOtherLinuxPatch=process.platform===`linux`;";
+
+  assert.throws(
+    () => applyLinuxChromePluginAutoInstallPatch(source),
+    /Required Linux Chrome plugin auto-install patch failed/,
+  );
+});
+
 test("handles literal Chrome plugin gate names", () => {
   const source =
     "var Kr=[{forceReload:!0,name:'chrome',isEnabled:({features:t})=>t.externalBrowserUseAllowed},{forceReload:!0,name:'chrome-internal',isEnabled:({features:t})=>t.externalBrowserUseAllowed}];";
