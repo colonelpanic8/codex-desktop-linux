@@ -2820,7 +2820,7 @@ test("auto-installs the current Chrome plugin gate shape", () => {
 
   assert.match(
     patched,
-    /\{forceReload:!0,installWhenMissing:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:\(\{buildFlavor:e,features:t\}\)=>t\.externalBrowserUseAllowed&&\$n\(e\)\}/,
+    /\{forceReload:!0,installWhenMissing:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:\(\{buildFlavor:e,features:t\}\)=>process\.platform===`linux`\|\|\(t\.externalBrowserUseAllowed&&\$n\(e\)\)\}/,
   );
   assert.match(patched, /name:xt,syncInstallStateWithChromeExtension:!0,isAvailable:\(\{buildFlavor:e,env:t,features:n\}\)=>Ar\(e,t\)&&n\.externalBrowserUseAllowed/);
   assert.match(patched, /name:dt,syncInstallStateWithChromeExtension:!0,isAvailable:\(\{buildFlavor:e,env:t,features:n\}\)=>jr\(e,t\)&&n\.externalBrowserUseAllowed/);
@@ -2904,10 +2904,24 @@ test("reports drifted Chrome native host runtime resolver as required upstream f
   }
 });
 
-test("keeps an already auto-installed Chrome plugin gate unchanged", () => {
+test("adds Linux availability to an already auto-installed Chrome plugin gate", () => {
   const source = currentPluginGateBundleFixture().replace(
     "{forceReload:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:",
     "{forceReload:!0,installWhenMissing:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:",
+  );
+
+  const patched = applyPatchTwice(applyLinuxChromePluginAutoInstallPatch, source);
+
+  assert.match(
+    patched,
+    /installWhenMissing:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:\(\{buildFlavor:e,features:t\}\)=>process\.platform===`linux`\|\|\(t\.externalBrowserUseAllowed&&\$n\(e\)\)/,
+  );
+});
+
+test("keeps a fully Linux-enabled Chrome plugin gate unchanged", () => {
+  const source = currentPluginGateBundleFixture().replace(
+    "{forceReload:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:({buildFlavor:e,features:t})=>t.externalBrowserUseAllowed&&$n(e)}",
+    "{forceReload:!0,installWhenMissing:!0,name:ut,syncInstallStateWithChromeExtension:!0,isAvailable:({buildFlavor:e,features:t})=>process.platform===`linux`||(t.externalBrowserUseAllowed&&$n(e))}",
   );
 
   assert.equal(applyPatchTwice(applyLinuxChromePluginAutoInstallPatch, source), source);
@@ -2920,6 +2934,7 @@ test("handles literal Chrome plugin gate names", () => {
   const patched = applyPatchTwice(applyLinuxChromePluginAutoInstallPatch, source);
 
   assert.match(patched, /installWhenMissing:!0,name:'chrome'/);
+  assert.match(patched, /process\.platform===`linux`\|\|\(t\.externalBrowserUseAllowed\)/);
   assert.doesNotMatch(patched, /installWhenMissing:!0,name:'chrome-internal'/);
 });
 

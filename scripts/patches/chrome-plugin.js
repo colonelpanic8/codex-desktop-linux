@@ -25,6 +25,10 @@ function hasChromeAutoInstall(source, chromeNameVar) {
   return new RegExp(String.raw`installWhenMissing:!0,name:(?:${namePatterns.join("|")})`).test(source);
 }
 
+function hasLinuxChromeAvailability(source) {
+  return source.includes("process.platform===`linux`");
+}
+
 function applyLinuxChromePluginAutoInstallPatch(currentSource) {
   if (!hasChromePluginLiteral(currentSource)) {
     console.warn(
@@ -62,12 +66,19 @@ function applyLinuxChromePluginAutoInstallPatch(currentSource) {
       }
 
       sawChromeGate = true;
-      if (installWhenMissing != null || prefix.includes("installWhenMissing:!0")) {
+      const hasInstallWhenMissing = installWhenMissing != null ||
+        prefix.includes("installWhenMissing:!0");
+      const hasLinuxAvailability = hasLinuxChromeAvailability(expression);
+      if (hasInstallWhenMissing && hasLinuxAvailability) {
         sawAlreadyInstalledGate = true;
         return gateSource;
       }
 
-      return `{${prefix}installWhenMissing:!0,name:${nameExpr},${middleFields}${availabilityProp}:({${paramsText}})=>${expression}${migrateSuffix}}`;
+      const installWhenMissingField = hasInstallWhenMissing ? (installWhenMissing ?? "") : "installWhenMissing:!0,";
+      const availabilityExpression = hasLinuxAvailability
+        ? expression
+        : `process.platform===\`linux\`||(${expression})`;
+      return `{${prefix}${installWhenMissingField}name:${nameExpr},${middleFields}${availabilityProp}:({${paramsText}})=>${availabilityExpression}${migrateSuffix}}`;
     },
   );
 
@@ -75,7 +86,10 @@ function applyLinuxChromePluginAutoInstallPatch(currentSource) {
     return patched;
   }
 
-  if (hasChromeAutoInstall(currentSource, chromeNameVar)) {
+  if (
+    hasChromeAutoInstall(currentSource, chromeNameVar) &&
+    hasLinuxChromeAvailability(currentSource)
+  ) {
     return currentSource;
   }
 
