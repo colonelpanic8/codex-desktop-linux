@@ -2,13 +2,13 @@
 set -Eeuo pipefail
 
 # ============================================================================
-# Codex Desktop for Linux — Installer
-# Converts the official macOS Codex Desktop app to run on Linux
+# ChatGPT Desktop for Linux — Installer
+# Converts the official macOS ChatGPT Desktop app to run on Linux
 # ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CODEX_APP_ID="${CODEX_APP_ID:-codex-desktop}"
-CODEX_APP_DISPLAY_NAME="${CODEX_APP_DISPLAY_NAME:-Codex Desktop}"
+CODEX_APP_DISPLAY_NAME="${CODEX_APP_DISPLAY_NAME:-ChatGPT}"
 INSTALL_ROOT="${CODEX_INSTALL_ROOT:-$SCRIPT_DIR}"
 DEFAULT_INSTALL_DIR_NAME="codex-app"
 DEFAULT_CODEX_WEBVIEW_PORT=5175
@@ -25,7 +25,7 @@ MIN_BETTER_SQLITE3_VERSION_FOR_ELECTRON_41="12.9.0"
 WORK_DIR="$(mktemp -d)"
 ARCH="$(uname -m)"
 ICON_SOURCE="$SCRIPT_DIR/assets/codex.png"
-LINUX_ICON_SOURCE="${CODEX_LINUX_ICON_SOURCE:-$SCRIPT_DIR/assets/codex-linux.png}"
+LINUX_ICON_SOURCE="${CODEX_LINUX_ICON_SOURCE:-}"
 
 # ---- Source library helpers ----
 . "$SCRIPT_DIR/scripts/lib/install-helpers.sh"
@@ -76,7 +76,7 @@ SCRIPT
 # ---- Main ----
 main() {
     echo "============================================" >&2
-    echo "  Codex Desktop for Linux — Installer"       >&2
+    echo "  ChatGPT Desktop for Linux — Installer"     >&2
     echo "============================================" >&2
     echo ""                                             >&2
 
@@ -102,6 +102,17 @@ main() {
 
     local app_dir
     app_dir=$(extract_dmg "$dmg_path")
+
+    if [ -z "$LINUX_ICON_SOURCE" ]; then
+        local upstream_chatgpt_icon="$app_dir/Contents/Resources/icon-chatgpt.png"
+        if [ -f "$upstream_chatgpt_icon" ]; then
+            LINUX_ICON_SOURCE="$upstream_chatgpt_icon"
+            info "Using upstream ChatGPT icon"
+        else
+            LINUX_ICON_SOURCE="$SCRIPT_DIR/assets/codex-linux.png"
+            warn "Upstream ChatGPT icon not found; using the bundled Linux icon"
+        fi
+    fi
 
     detect_electron_version "$app_dir"
     if [ "$INSPECT_ONLY" -eq 1 ]; then

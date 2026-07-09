@@ -147,8 +147,8 @@ render_desktop_entry() {
     local rendered_target="$target.tmp"
 
     package_name="$(sed_escape_replacement "$PACKAGE_NAME")"
-    display_name="$(sed_escape_replacement "${PACKAGE_DISPLAY_NAME:-Codex Desktop}")"
-    comment="$(sed_escape_replacement "${PACKAGE_COMMENT:-Run Codex Desktop on Linux}")"
+    display_name="$(sed_escape_replacement "${PACKAGE_DISPLAY_NAME:-ChatGPT}")"
+    comment="$(sed_escape_replacement "${PACKAGE_COMMENT:-Run ChatGPT Desktop on Linux}")"
 
     awk \
         -v package_name="$package_name" \
