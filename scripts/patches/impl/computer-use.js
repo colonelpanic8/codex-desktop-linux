@@ -147,8 +147,15 @@ function hasComputerUseNativeAppsMention(source) {
       hasComputerUseLiteral(source) ||
       source.includes("computer-use-native-desktop-app-icon") ||
       source.includes("computerUse.nativeApps") ||
-      source.includes("computerUse.label")
+      source.includes("computerUse.label") ||
+      hasComputerUseNativeAppsResultShape(source)
     );
+}
+
+function hasComputerUseNativeAppsResultShape(source) {
+  return /nativeApps:[A-Za-z_$][\w$]*/.test(source) &&
+    /isLoading:[A-Za-z_$][\w$]*/.test(source) &&
+    /[A-Za-z_$][\w$]*\.data\?\.apps/.test(source);
 }
 
 function isComputerUseNameExpr(nameExpr, computerUseNameVar) {
