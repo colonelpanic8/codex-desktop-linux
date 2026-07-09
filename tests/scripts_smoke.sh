@@ -178,6 +178,67 @@ test_extract_webview_replaces_linux_icon_assets() {
     assert_contains "$output_log" "Linux app icon applied to 2 webview asset(s)"
 }
 
+test_installer_prefers_compact_upstream_chatgpt_icon() {
+    info "Checking installer prefers the compact upstream ChatGPT icon"
+    local workspace="$TMP_DIR/chatgpt-icon-selection"
+    local work_dir="$workspace/work"
+    local app_dir="$workspace/ChatGPT.app"
+    local compact_icon="$work_dir/app-extracted/webview/assets/referral-modal-chatgpt-blossom-test.png"
+    local full_size_icon="$app_dir/Contents/Resources/icon-chatgpt.png"
+    local selection_file="$workspace/selection.txt"
+
+    mkdir -p "$(dirname "$compact_icon")" "$(dirname "$full_size_icon")"
+    printf '%s\n' compact > "$compact_icon"
+    printf '%s\n' full-size > "$full_size_icon"
+
+    (
+        export CODEX_INSTALLER_SOURCE_ONLY=1
+        # shellcheck disable=SC1091
+        source "$REPO_DIR/install.sh"
+        WORK_DIR="$work_dir"
+        LINUX_ICON_SOURCE=""
+        select_linux_icon_source
+        printf '%s\n' "$LINUX_ICON_SOURCE" > "$selection_file"
+    )
+
+    [ "$(cat "$selection_file")" = "$compact_icon" ] \
+        || fail "Expected compact upstream ChatGPT icon to win over the full-size resource icon"
+
+    rm -f "$compact_icon"
+    (
+        export CODEX_INSTALLER_SOURCE_ONLY=1
+        # shellcheck disable=SC1091
+        source "$REPO_DIR/install.sh"
+        WORK_DIR="$work_dir"
+        LINUX_ICON_SOURCE=""
+        select_linux_icon_source
+        printf '%s\n' "$LINUX_ICON_SOURCE" > "$selection_file"
+    )
+
+    [ "$(cat "$selection_file")" = "$REPO_DIR/assets/codex-linux.png" ] \
+        || fail "Expected a missing compact ChatGPT icon to avoid the oversized upstream app icon"
+}
+
+test_user_local_icon_prefers_generated_app_icon() {
+    info "Checking user-local integration reuses the generated ChatGPT icon"
+    local workspace="$TMP_DIR/user-local-chatgpt-icon"
+    local home_dir="$workspace/home"
+    local generated_icon="$home_dir/.local/opt/codex-desktop-linux/codex-app/.codex-linux/codex-desktop.png"
+
+    mkdir -p "$(dirname "$generated_icon")"
+    printf '%s\n' 'generated-chatgpt-icon' > "$generated_icon"
+
+    (
+        HOME="$home_dir"
+        XDG_DATA_HOME="$home_dir/.local/share"
+        XDG_STATE_HOME="$home_dir/.local/state"
+        # shellcheck disable=SC1091
+        source "$REPO_DIR/contrib/user-local-install/files/.local/lib/codex-desktop-linux/common.sh"
+        extract_icon
+        cmp -s "$generated_icon" "$ICON_PATH"
+    ) || fail "Expected user-local integration to reuse the generated ChatGPT icon"
+}
+
 test_common_helper_sourcing() {
     info "Checking shared packaging helpers"
     local probe_file="$TMP_DIR/probe.txt"
@@ -186,6 +247,30 @@ test_common_helper_sourcing() {
     # shellcheck disable=SC1091
     source "$REPO_DIR/scripts/lib/package-common.sh"
     ensure_file_exists "$probe_file" "probe file"
+}
+
+test_package_icon_source_resolution() {
+    info "Checking shared package icon source resolution"
+    local workspace="$TMP_DIR/package-icon-source"
+    local app_dir="$workspace/app"
+    local generated_icon="$app_dir/.codex-linux/codex-desktop.png"
+    local explicit_icon="$workspace/explicit.png"
+
+    mkdir -p "$(dirname "$generated_icon")"
+    printf '%s\n' 'generated-chatgpt-icon' > "$generated_icon"
+    printf '%s\n' 'explicit-chatgpt-icon' > "$explicit_icon"
+
+    # shellcheck disable=SC1091
+    source "$REPO_DIR/scripts/lib/package-common.sh"
+    APP_DIR="$app_dir"
+    PACKAGE_NAME="side-by-side-chatgpt"
+    PACKAGE_ICON_SOURCE=""
+    [ "$(resolve_package_icon_source)" = "$generated_icon" ] \
+        || fail "Expected a unique generated app icon to survive a custom package name"
+
+    PACKAGE_ICON_SOURCE="$explicit_icon"
+    [ "$(resolve_package_icon_source)" = "$explicit_icon" ] \
+        || fail "Expected PACKAGE_ICON_SOURCE to take precedence"
 }
 
 test_package_payload_permission_normalization() {
@@ -3526,12 +3611,15 @@ test_bundled_plugin_builders_accept_prebuilt_binaries() {
     local backend="$workspace/codex-computer-use-linux"
     local cosmic="$workspace/codex-computer-use-cosmic"
     local host="$workspace/codex-chrome-extension-host"
+    local chatgpt_icon="$workspace/chatgpt.png"
+    local staged_plugins="$workspace/plugins"
     local output_log="$workspace/output.log"
 
     mkdir -p "$workspace"
     printf '#!/usr/bin/env bash\n' > "$backend"
     printf '#!/usr/bin/env bash\n' > "$cosmic"
     printf '#!/usr/bin/env bash\n' > "$host"
+    printf '%s\n' 'chatgpt-icon' > "$chatgpt_icon"
     chmod +x "$backend" "$cosmic" "$host"
 
     (
@@ -3539,6 +3627,8 @@ test_bundled_plugin_builders_accept_prebuilt_binaries() {
         CODEX_LINUX_COMPUTER_USE_BACKEND_SOURCE="$backend"
         CODEX_LINUX_COMPUTER_USE_COSMIC_SOURCE="$cosmic"
         CODEX_CHROME_EXTENSION_HOST_SOURCE="$host"
+        LINUX_ICON_SOURCE="$chatgpt_icon"
+        ICON_SOURCE="$REPO_DIR/assets/codex.png"
         info() { echo "[INFO] $*" >&2; }
         warn() { echo "[WARN] $*" >&2; }
         error() { echo "[ERROR] $*" >&2; exit 1; }
@@ -3546,6 +3636,7 @@ test_bundled_plugin_builders_accept_prebuilt_binaries() {
         source "$REPO_DIR/scripts/lib/bundled-plugins.sh"
         build_linux_computer_use_backend
         build_chrome_extension_host
+        stage_linux_computer_use_plugin "$staged_plugins"
     ) > "$output_log" 2>&1
 
     assert_contains "$output_log" "Using prebuilt Linux Computer Use backend"
@@ -3553,6 +3644,8 @@ test_bundled_plugin_builders_accept_prebuilt_binaries() {
     assert_contains "$output_log" "$backend"
     assert_contains "$output_log" "$cosmic"
     assert_contains "$output_log" "$host"
+    cmp -s "$chatgpt_icon" "$staged_plugins/computer-use/assets/app-icon.png" \
+        || fail "Expected the bundled Computer Use plugin to use the selected ChatGPT icon"
 }
 
 test_launcher_managed_node_handles_unset_path() {
@@ -4429,7 +4522,7 @@ EOF
     assert_contains "$REPO_DIR/scripts/lib/process-detection.sh" "CODEX_INSTALL_ALLOW_RUNNING"
     assert_contains "$REPO_DIR/scripts/lib/process-detection.sh" "assert_install_target_not_running"
     assert_contains "$REPO_DIR/scripts/lib/process-detection.sh" "find_running_install_target_pid"
-    assert_contains "$REPO_DIR/scripts/lib/process-detection.sh" "Codex Desktop is currently running from"
+    assert_contains "$REPO_DIR/scripts/lib/process-detection.sh" "ChatGPT Desktop is currently running from"
     assert_contains "$REPO_DIR/launcher/start.sh.template" "prompt_install_missing_cli"
     assert_contains "$REPO_DIR/launcher/start.sh.template" "prompt-install-cli"
     assert_contains "$REPO_DIR/launcher/start.sh.template" '.npm-global/bin/codex'
@@ -7449,7 +7542,10 @@ EOF
 
 main() {
     test_common_helper_sourcing
+    test_package_icon_source_resolution
     test_extract_webview_replaces_linux_icon_assets
+    test_installer_prefers_compact_upstream_chatgpt_icon
+    test_user_local_icon_prefers_generated_app_icon
     test_package_payload_permission_normalization
     test_deb_builder_smoke
     test_deb_builder_rebuilds_deleted_updater_source

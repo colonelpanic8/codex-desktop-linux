@@ -6,7 +6,7 @@ set -Eeuo pipefail
 # Converts the official macOS ChatGPT Desktop app to run on Linux
 # ============================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CODEX_APP_ID="${CODEX_APP_ID:-codex-desktop}"
 CODEX_APP_DISPLAY_NAME="${CODEX_APP_DISPLAY_NAME:-ChatGPT}"
 INSTALL_ROOT="${CODEX_INSTALL_ROOT:-$SCRIPT_DIR}"
@@ -73,6 +73,34 @@ SCRIPT
     info "Start script created"
 }
 
+select_linux_icon_source() {
+    if [ -n "$LINUX_ICON_SOURCE" ]; then
+        return 0
+    fi
+
+    local assets_dir="$WORK_DIR/app-extracted/webview/assets"
+    local -a chatgpt_icon_candidates=()
+    if [ -d "$assets_dir" ]; then
+        mapfile -t chatgpt_icon_candidates < <(
+            find "$assets_dir" -maxdepth 1 -type f \
+                -name 'referral-modal-chatgpt-blossom-*.png' -print | LC_ALL=C sort
+        )
+    fi
+
+    if [ "${#chatgpt_icon_candidates[@]}" -eq 1 ]; then
+        LINUX_ICON_SOURCE="${chatgpt_icon_candidates[0]}"
+        info "Using upstream ChatGPT icon"
+        return 0
+    fi
+
+    LINUX_ICON_SOURCE="$SCRIPT_DIR/assets/codex-linux.png"
+    if [ "${#chatgpt_icon_candidates[@]}" -gt 1 ]; then
+        warn "Found multiple compact upstream ChatGPT icons; using the bundled Linux icon"
+    else
+        warn "Compact upstream ChatGPT icon not found; using the bundled Linux icon"
+    fi
+}
+
 # ---- Main ----
 main() {
     echo "============================================" >&2
@@ -103,17 +131,6 @@ main() {
     local app_dir
     app_dir=$(extract_dmg "$dmg_path")
 
-    if [ -z "$LINUX_ICON_SOURCE" ]; then
-        local upstream_chatgpt_icon="$app_dir/Contents/Resources/icon-chatgpt.png"
-        if [ -f "$upstream_chatgpt_icon" ]; then
-            LINUX_ICON_SOURCE="$upstream_chatgpt_icon"
-            info "Using upstream ChatGPT icon"
-        else
-            LINUX_ICON_SOURCE="$SCRIPT_DIR/assets/codex-linux.png"
-            warn "Upstream ChatGPT icon not found; using the bundled Linux icon"
-        fi
-    fi
-
     detect_electron_version "$app_dir"
     if [ "$INSPECT_ONLY" -eq 1 ]; then
         inspect_rebuild_candidate "$app_dir" "$dmg_path"
@@ -121,6 +138,7 @@ main() {
     fi
 
     patch_asar "$app_dir"
+    select_linux_icon_source
     download_electron
     extract_webview "$app_dir"
     install_app

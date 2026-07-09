@@ -203,6 +203,40 @@ render_desktop_entry() {
     chmod 0644 "$target"
 }
 
+resolve_package_icon_source() {
+    if [ -n "${PACKAGE_ICON_SOURCE:-}" ]; then
+        printf '%s\n' "$PACKAGE_ICON_SOURCE"
+        return 0
+    fi
+
+    local expected_icon="$APP_DIR/.codex-linux/$PACKAGE_NAME.png"
+    if [ -f "$expected_icon" ]; then
+        printf '%s\n' "$expected_icon"
+        return 0
+    fi
+
+    local icon_dir="$APP_DIR/.codex-linux"
+    local -a candidates=()
+    local candidate
+    if [ -d "$icon_dir" ]; then
+        while IFS= read -r -d '' candidate; do
+            candidates+=("$candidate")
+        done < <(
+            find "$icon_dir" -maxdepth 1 -type f -name '*.png' ! -name '*-tray.png' -print0 |
+                sort -z
+        )
+    fi
+    if [ "${#candidates[@]}" -eq 1 ]; then
+        printf '%s\n' "${candidates[0]}"
+        return 0
+    fi
+
+    if [ "${#candidates[@]}" -gt 1 ]; then
+        warn "Multiple generated app icons found in $icon_dir; using the bundled Linux icon"
+    fi
+    printf '%s\n' "$REPO_DIR/assets/codex-linux.png"
+}
+
 render_packaged_runtime_helper() {
     local target="$1"
     local package_name

@@ -15,8 +15,7 @@ PACKAGE_NAME="${PACKAGE_NAME:-codex-desktop}"
 PACKAGE_DISPLAY_NAME="${PACKAGE_DISPLAY_NAME:-ChatGPT}"
 PACKAGE_COMMENT="${PACKAGE_COMMENT:-Run ChatGPT Desktop on Linux}"
 PACKAGE_VERSION="${PACKAGE_VERSION:-$(date -u +%Y.%m.%d.%H%M%S)}"
-ICON_SOURCE="${PACKAGE_ICON_SOURCE:-$APP_DIR/.codex-linux/$PACKAGE_NAME.png}"
-[ -f "$ICON_SOURCE" ] || ICON_SOURCE="$REPO_DIR/assets/codex-linux.png"
+ICON_SOURCE="$(resolve_package_icon_source)"
 
 map_arch() {
     case "$(uname -m)" in

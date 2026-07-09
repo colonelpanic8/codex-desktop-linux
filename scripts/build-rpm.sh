@@ -13,8 +13,6 @@ PACKAGED_RUNTIME_TEMPLATE="$REPO_DIR/packaging/linux/codex-packaged-runtime.sh"
 
 PACKAGE_NAME="${PACKAGE_NAME:-codex-desktop}"
 PACKAGE_VERSION="${PACKAGE_VERSION:-$(date -u +%Y.%m.%d.%H%M%S)}"
-ICON_SOURCE="${PACKAGE_ICON_SOURCE:-$APP_DIR/.codex-linux/$PACKAGE_NAME.png}"
-[ -f "$ICON_SOURCE" ] || ICON_SOURCE="$REPO_DIR/assets/codex-linux.png"
 MAX_BUILD_THREADS="${MAX_BUILD_THREADS:-0}"
 RPM_BINARY_PAYLOAD="${RPM_BINARY_PAYLOAD:-}"
 UPDATER_BINARY_SOURCE="${UPDATER_BINARY_SOURCE:-$REPO_DIR/target/release/codex-update-manager}"
@@ -25,6 +23,8 @@ UPDATE_BUILDER_ROOT_PLACEHOLDER="__UPDATE_BUILDER_ROOT__"
 # Keep the installed update-builder payload aligned with the other package formats.
 # shellcheck source=scripts/lib/package-common.sh
 . "$REPO_DIR/scripts/lib/package-common.sh"
+
+ICON_SOURCE="$(resolve_package_icon_source)"
 
 info()  { echo "[INFO] $*" >&2; }
 error() { echo "[ERROR] $*" >&2; exit 1; }
