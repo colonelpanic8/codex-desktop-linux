@@ -2,6 +2,7 @@
 
 const {
   escapeRegExp,
+  findMatchingBrace,
 } = require("../../lib/minified-js.js");
 
 const LINUX_TITLEBAR_OVERLAY_HEIGHT = 30;
@@ -44,15 +45,14 @@ function applyLinuxWindowOptionsPatch(currentSource, iconAsset) {
     const setIconNeedle = `setIcon(${iconPathExpression})`;
     const readyToShowSetIconInsertionPattern = /[A-Za-z_$][\w$]*\.once\(`ready-to-show`,\(\)=>\{/;
 
-    const windowOptionsNeedle =
+    const currentLinuxAutoHideMenuBarNeedle =
       "...process.platform===`win32`||process.platform===`linux`?{autoHideMenuBar:!0}:{},";
     const windowOptionsReplacement =
       `...process.platform===\`win32\`?{autoHideMenuBar:!0}:process.platform===\`linux\`?{${iconPathNeedle}}:{},`;
 
-    if (patchedSource.includes(windowOptionsNeedle)) {
-      patchedSource = patchedSource.split(windowOptionsNeedle).join(windowOptionsReplacement);
+    if (patchedSource.includes(currentLinuxAutoHideMenuBarNeedle)) {
+      patchedSource = patchedSource.split(currentLinuxAutoHideMenuBarNeedle).join(windowOptionsReplacement);
     } else if (
-      patchedSource === currentSource &&
       !patchedSource.includes(iconPathNeedle) &&
       !patchedSource.includes(setIconNeedle) &&
       !readyToShowSetIconInsertionPattern.test(patchedSource)
@@ -61,8 +61,30 @@ function applyLinuxWindowOptionsPatch(currentSource, iconAsset) {
     }
   }
 
+  patchedSource = applyDefinedBrowserWindowOptionsPatch(patchedSource);
   patchedSource = applyLinuxPrimaryFocusablePatch(patchedSource);
   return patchedSource;
+}
+
+function applyDefinedBrowserWindowOptionsPatch(currentSource) {
+  const browserWindowOptionsRegex =
+    /show:([A-Za-z_$][\w$]*),parent:([A-Za-z_$][\w$]*),\.\.\.([A-Za-z_$][\w$]*)===void 0\?\{\}:\{focusable:\3\},(\.\.\.process\.platform===`win32`(?:\|\|process\.platform===`linux`)?\?\{autoHideMenuBar:!0\}(?::process\.platform===`linux`\?\{icon:process\.resourcesPath\+`\/\.\.\/content\/webview\/assets\/[^`]+`\})?:\{\},)backgroundMaterial:([A-Za-z_$][\w$]*)\?\?void 0,\.\.\.([A-Za-z_$][\w$]*),minWidth:([A-Za-z_$][\w$]*)\?\.width,minHeight:\7\?\.height,webPreferences:([A-Za-z_$][\w$]*)/g;
+
+  return currentSource.replace(
+    browserWindowOptionsRegex,
+    (
+      _match,
+      showAlias,
+      parentAlias,
+      focusableAlias,
+      platformOptions,
+      backgroundMaterialAlias,
+      appearanceOptionsAlias,
+      minimumSizeAlias,
+      webPreferencesAlias,
+    ) =>
+      `show:${showAlias},...${parentAlias}===void 0?{}:{parent:${parentAlias}},...${focusableAlias}===void 0?{}:{focusable:${focusableAlias}},${platformOptions}...${backgroundMaterialAlias}==null?{}:{backgroundMaterial:${backgroundMaterialAlias}},...${appearanceOptionsAlias},...${minimumSizeAlias}==null?{}:{minWidth:${minimumSizeAlias}.width,minHeight:${minimumSizeAlias}.height},webPreferences:${webPreferencesAlias}`,
+  );
 }
 
 function findCreateWindowAppearanceAlias(currentSource, matchIndex) {
@@ -78,29 +100,28 @@ function findCreateWindowAppearanceAlias(currentSource, matchIndex) {
 }
 
 function hasPrimaryBrowserWindowFocusableCandidate(currentSource) {
-  return /createWindow\([^)]*\)\{let\{[^}]*appearance:[A-Za-z_$][\w$]*=`primary`[^}]*\}=[\s\S]{0,3500}?new\s+[A-Za-z_$][\w$]*\.BrowserWindow\(\{[\s\S]{0,2000}?\.\.\.[A-Za-z_$][\w$]*===void 0\?\{\}:\{focusable:[A-Za-z_$][\w$]*\}/.test(
+  return /createWindow\([^)]*\)\{let\{[^}]*appearance:[A-Za-z_$][\w$]*(?:=`primary`)?[^}]*\}=[\s\S]{0,3500}?new\s+[A-Za-z_$][\w$]*\.BrowserWindow\(\{[\s\S]{0,2000}?focusable:/.test(
     currentSource,
   );
 }
 
 function applyLinuxPrimaryFocusablePatch(currentSource) {
   if (
-    currentSource.includes("===`primary`?{focusable:!0}") ||
-    currentSource.includes("===`primary`?!0:")
+    currentSource.includes("===`primary`?{focusable:!0}")
   ) {
     return currentSource;
   }
 
   let patchedAny = false;
-  let skippedAny = false;
+  let matchedAny = false;
   const focusableSpreadRegex =
-    /\.\.\.([A-Za-z_$][\w$]*)===void 0\?\{\}:\{focusable:\1\},(\.\.\.process\.platform===`win32`\?)/g;
-  let patchedSource = currentSource.replace(
+    /\.\.\.([A-Za-z_$][\w$]*)===void 0\?\{\}:\{focusable:\1\},(\.\.\.process\.platform===`win32`(?:\|\|process\.platform===`linux`)?\?)/g;
+  const patchedSource = currentSource.replace(
     focusableSpreadRegex,
     (match, focusableAlias, platformOptions, offset) => {
+      matchedAny = true;
       const appearanceAlias = findCreateWindowAppearanceAlias(currentSource, offset);
       if (appearanceAlias == null) {
-        skippedAny = true;
         return match;
       }
       patchedAny = true;
@@ -111,7 +132,7 @@ function applyLinuxPrimaryFocusablePatch(currentSource) {
     },
   );
 
-  if (!patchedAny && skippedAny && hasPrimaryBrowserWindowFocusableCandidate(currentSource)) {
+  if (!patchedAny && matchedAny && hasPrimaryBrowserWindowFocusableCandidate(currentSource)) {
     throw new Error("Could not derive primary BrowserWindow appearance alias for Linux focusable patch");
   }
 
@@ -122,47 +143,66 @@ function applyLinuxPrimaryFocusablePatch(currentSource) {
   return patchedSource;
 }
 
+function findMinifiedMethod(source, signatureRegex) {
+  const match = source.match(signatureRegex);
+  if (match == null) {
+    return null;
+  }
+  const openIndex = match.index + match[0].length - 1;
+  const closeIndex = findMatchingBrace(source, openIndex);
+  if (closeIndex === -1) {
+    return null;
+  }
+  return {
+    match,
+    start: match.index,
+    end: closeIndex + 1,
+    text: source.slice(match.index, closeIndex + 1),
+  };
+}
+
 function applyLinuxNativeTitlebarPatch(currentSource) {
-  const upstreamTitlebarRegex =
-    /(case`quickChat`:case`primary`:return ([A-Za-z_$][\w$]*)===`darwin`\?[\s\S]{0,1000}?):\2===`win32`\|\|\2===`linux`\?\{titleBarStyle:`hidden`,titleBarOverlay:([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\),\.\.\.([A-Za-z_$][\w$]*)===`quickChat`\?\{resizable:!0\}:\{\}\}:\{titleBarStyle:`default`,\.\.\.\5===`quickChat`\?\{resizable:!0\}:\{\}\};/;
-  const patchedTitlebarRegex = new RegExp(
-    `case\`quickChat\`:case\`primary\`:return [\\s\\S]{0,1000}?===\`win32\`\\?\\{titleBarStyle:\`hidden\`,titleBarOverlay:([A-Za-z_$][\\w$]*)\\(([A-Za-z_$][\\w$]*)\\)[\\s\\S]{0,300}?===\`linux\`\\?\\{titleBarStyle:\`hidden\`,titleBarOverlay:${LINUX_TITLEBAR_OVERLAY_HELPER}\\(\\2\\)`,
+  const helperFunctionRegex = new RegExp(
+    'function ' +
+      escapeRegExp(LINUX_TITLEBAR_OVERLAY_HELPER) +
+      '\\([^)]*\\)\\{return\\{color:([A-Za-z_$][\\w$]*)\\.nativeTheme\\.shouldUseDarkColors\\?`#111111`:([A-Za-z_$][\\w$]*),symbolColor:\\1\\.nativeTheme\\.shouldUseDarkColors\\?([A-Za-z_$][\\w$]*):([A-Za-z_$][\\w$]*),height:Math\\.round\\(' +
+      LINUX_TITLEBAR_OVERLAY_HEIGHT +
+      '\\*[A-Za-z_$][\\w$]*\\)\\}\\}',
   );
-  const upstreamTitlebarMatch = currentSource.match(upstreamTitlebarRegex);
-  const patchedTitlebarMatch = currentSource.match(patchedTitlebarRegex);
-  if (upstreamTitlebarMatch == null && patchedTitlebarMatch == null) {
+  const primaryTitlebarRegex =
+    /(case`quickChat`:case`primary`:return [^;]{0,2000}?([A-Za-z_$][\w$]*)===`win32`\|\|\2===`linux`\?\{titleBarStyle:`hidden`,titleBarOverlay:)([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\)/;
+  const patchedPrimaryTitlebarRegex = new RegExp(
+    `(case\`quickChat\`:case\`primary\`:return [^;]{0,2000}?titleBarOverlay:)([A-Za-z_$][\\w$]*)===\`linux\`\\?${escapeRegExp(LINUX_TITLEBAR_OVERLAY_HELPER)}\\(([A-Za-z_$][\\w$]*)\\):([A-Za-z_$][\\w$]*)\\(\\3\\)`,
+  );
+  const primaryTitlebarMatch = currentSource.match(primaryTitlebarRegex);
+  const patchedPrimaryTitlebarMatch = currentSource.match(patchedPrimaryTitlebarRegex);
+  if (primaryTitlebarMatch == null && patchedPrimaryTitlebarMatch == null) {
     console.warn("WARN: Could not find primary BrowserWindow titlebar snippet — skipping Linux native titlebar patch");
     return currentSource;
   }
 
-  const overlayHelperAlias = upstreamTitlebarMatch?.[3] ?? patchedTitlebarMatch[1];
-  const overlayHelperRegex = new RegExp(
-    `function ${escapeRegExp(overlayHelperAlias)}\\([^)]*\\)\\{return\\{color:[A-Za-z_$][\\w$]*,symbolColor:([A-Za-z_$][\\w$]*)\\.nativeTheme\\.shouldUseDarkColors\\?([A-Za-z_$][\\w$]*):([A-Za-z_$][\\w$]*),height:Math\\.round\\([^)]*\\)\\}\\}`,
-  );
-  const overlayHelperMatch = currentSource.match(overlayHelperRegex);
-  const backgroundHelperMatch = currentSource.match(
-    /function [A-Za-z_$][\w$]*\(\{platform:[A-Za-z_$][\w$]*,appearance:[A-Za-z_$][\w$]*,opaqueWindowSurfaceEnabled:([A-Za-z_$][\w$]*),prefersDarkColors:([A-Za-z_$][\w$]*)\}\)\{return \1\?\{backgroundColor:\2\?[A-Za-z_$][\w$]*:([A-Za-z_$][\w$]*),backgroundMaterial:/,
-  );
-  if (overlayHelperMatch == null || backgroundHelperMatch == null) {
-    console.warn("WARN: Could not derive titleBarOverlay aliases — skipping Linux native titlebar patch");
-    return currentSource;
-  }
-
-  const [, electronAlias, lightSymbolAlias, darkSymbolAlias] = overlayHelperMatch;
-  const lightBackgroundAlias = backgroundHelperMatch[3];
   let patchedSource = currentSource;
+  let electronAlias;
+  if (primaryTitlebarMatch != null) {
+    const [, titlebarPrefix, platformAlias, overlayHelperAlias, zoomAlias] = primaryTitlebarMatch;
+    const overlayHelperRegex = new RegExp(
+      `function ${escapeRegExp(overlayHelperAlias)}\\([^)]*\\)\\{return\\{color:[A-Za-z_$][\\w$]*,symbolColor:([A-Za-z_$][\\w$]*)\\.nativeTheme\\.shouldUseDarkColors\\?([A-Za-z_$][\\w$]*):([A-Za-z_$][\\w$]*),height:Math\\.round\\(([A-Za-z_$][\\w$]*)\\*[^)]*\\)\\}\\}`,
+    );
+    const overlayHelperMatch = currentSource.match(overlayHelperRegex);
+    const linuxBackgroundMatch = currentSource.match(
+      /===`linux`&&!([A-Za-z_$][\w$]*)\([A-Za-z_$][\w$]*\)\?\{backgroundColor:([A-Za-z_$][\w$]*)\?([A-Za-z_$][\w$]*):([A-Za-z_$][\w$]*),backgroundMaterial:null\}/,
+    );
+    if (overlayHelperMatch == null || linuxBackgroundMatch == null) {
+      console.warn("WARN: Could not derive titleBarOverlay aliases — skipping Linux native titlebar patch");
+      return currentSource;
+    }
 
-  if (upstreamTitlebarMatch != null) {
-    const [, darwinBranch, platformAlias, , zoomAlias, appearanceAlias] = upstreamTitlebarMatch;
-    const windowsBranch =
-      `${platformAlias}===\`win32\`?{titleBarStyle:\`hidden\`,titleBarOverlay:${overlayHelperAlias}(${zoomAlias}),...${appearanceAlias}===\`quickChat\`?{resizable:!0}:{}}`;
-    const linuxBranch =
-      `${platformAlias}===\`linux\`?{titleBarStyle:\`hidden\`,titleBarOverlay:${LINUX_TITLEBAR_OVERLAY_HELPER}(${zoomAlias}),...${appearanceAlias}===\`quickChat\`?{resizable:!0}:{}}`;
-    const defaultBranch =
-      `{titleBarStyle:\`default\`,...${appearanceAlias}===\`quickChat\`?{resizable:!0}:{}};`;
+    const [, currentElectronAlias, lightSymbolAlias, darkSymbolAlias] = overlayHelperMatch;
+    const lightBackgroundAlias = linuxBackgroundMatch[4];
+    electronAlias = currentElectronAlias;
     patchedSource = patchedSource.replace(
-      upstreamTitlebarRegex,
-      `${darwinBranch}:${windowsBranch}:${linuxBranch}:${defaultBranch}`,
+      primaryTitlebarRegex,
+      `${titlebarPrefix}${platformAlias}===\`linux\`?${LINUX_TITLEBAR_OVERLAY_HELPER}(${zoomAlias}):${overlayHelperAlias}(${zoomAlias})`,
     );
     patchedSource = ensureLinuxTitlebarOverlayHelper(
       patchedSource,
@@ -174,30 +214,58 @@ function applyLinuxNativeTitlebarPatch(currentSource) {
         darkSymbolAlias,
       ),
     );
+    if (patchedSource == null) {
+      console.warn("WARN: Could not insert Linux titleBarOverlay helper — skipping Linux native titlebar patch");
+      return currentSource;
+    }
+  } else {
+    const helperFunctionMatch = currentSource.match(helperFunctionRegex);
+    if (helperFunctionMatch == null) {
+      console.warn("WARN: Could not derive Linux titleBarOverlay helper aliases — skipping Linux native titlebar patch");
+      return currentSource;
+    }
+    electronAlias = helperFunctionMatch[1];
   }
 
-  const escapedOverlayHelper = escapeRegExp(overlayHelperAlias);
-  const syncOverlayRegex = new RegExp(
-    `([A-Za-z_$][\\w$]*)\\.setTitleBarOverlay\\(${escapedOverlayHelper}\\(this\\.windowZooms\\.get\\(\\1\\.id\\)\\)\\)`,
-    "g",
-  );
-  patchedSource = patchedSource.replace(
-    syncOverlayRegex,
-    (_match, windowAlias) =>
-      `${windowAlias}.setTitleBarOverlay(process.platform===\`linux\`?${LINUX_TITLEBAR_OVERLAY_HELPER}(this.windowZooms.get(${windowAlias}.id)):${overlayHelperAlias}(this.windowZooms.get(${windowAlias}.id)))`,
-  );
-
-  const zoomOverlayRegex = new RegExp(
-    `([A-Za-z_$][\\w$]*)\\.setTitleBarOverlay\\(${escapedOverlayHelper}\\(([A-Za-z_$][\\w$]*)\\)\\)`,
-    "g",
-  );
+  const zoomOverlayRegex =
+    /\(process\.platform===`win32`\|\|process\.platform===`linux`\)&&\(this\.windowZooms\.set\(([A-Za-z_$][\w$]*)\.id,([A-Za-z_$][\w$]*)\),\1\.setTitleBarOverlay\(([A-Za-z_$][\w$]*)\(\2\)\)\)/g;
   patchedSource = patchedSource.replace(
     zoomOverlayRegex,
-    (_match, windowAlias, zoomAlias) =>
-      `${windowAlias}.setTitleBarOverlay(process.platform===\`linux\`?${LINUX_TITLEBAR_OVERLAY_HELPER}(${zoomAlias}):${overlayHelperAlias}(${zoomAlias}))`,
+    (_match, windowAlias, zoomAlias, overlayHelperAlias) =>
+      `(process.platform===\`win32\`||process.platform===\`linux\`)&&(this.windowZooms.set(${windowAlias}.id,${zoomAlias}),${windowAlias}.setTitleBarOverlay(process.platform===\`linux\`?${LINUX_TITLEBAR_OVERLAY_HELPER}(${zoomAlias}):${overlayHelperAlias}(${zoomAlias})))`,
   );
 
-  return patchedSource;
+  const overlaySyncMethod = findMinifiedMethod(
+    patchedSource,
+    /install[A-Za-z_$][\w$]*TitleBarOverlaySync\(([A-Za-z_$][\w$]*),([A-Za-z_$][\w$]*)\)\{/,
+  );
+  if (overlaySyncMethod == null) {
+    return patchedSource;
+  }
+  if (overlaySyncMethod.text.includes(`setTitleBarOverlay(process.platform===\`linux\`?${LINUX_TITLEBAR_OVERLAY_HELPER}(`)) {
+    return patchedSource;
+  }
+
+  const windowAlias = overlaySyncMethod.match[1];
+  const overlayCallRegex = new RegExp(
+    `${escapeRegExp(windowAlias)}\\.setTitleBarOverlay\\(([A-Za-z_$][\\w$]*)\\(this\\.windowZooms\\.get\\(${escapeRegExp(windowAlias)}\\.id\\)\\)\\)`,
+  );
+  const overlayCallMatch = overlaySyncMethod.text.match(overlayCallRegex);
+  if (overlayCallMatch == null) {
+    console.warn("WARN: Could not patch titleBarOverlay nativeTheme sync for Linux");
+    return patchedSource;
+  }
+
+  const windowsOverlayHelperAlias = overlayCallMatch[1];
+  const patchedMethod = overlaySyncMethod.text.replace(
+    overlayCallRegex,
+    `${windowAlias}.setTitleBarOverlay(process.platform===\`linux\`?${LINUX_TITLEBAR_OVERLAY_HELPER}(this.windowZooms.get(${windowAlias}.id)):${windowsOverlayHelperAlias}(this.windowZooms.get(${windowAlias}.id)))`,
+  );
+  return (
+    patchedSource.slice(0, overlaySyncMethod.start) +
+    patchedMethod +
+    patchedSource.slice(overlaySyncMethod.end)
+  );
 }
 
 function applyLinuxMenuPatch(currentSource) {
