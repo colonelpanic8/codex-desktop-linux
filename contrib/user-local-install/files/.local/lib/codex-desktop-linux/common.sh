@@ -3,7 +3,7 @@ set -euo pipefail
 
 OPT_ROOT="${HOME}/.local/opt/codex-desktop-linux"
 APP_DIR="${OPT_ROOT}/codex-app"
-DMG_URL="https://persistent.oaistatic.com/codex-app-prod/Codex.dmg"
+DMG_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 
 XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
 XDG_STATE_HOME="${XDG_STATE_HOME:-${HOME}/.local/state}"
