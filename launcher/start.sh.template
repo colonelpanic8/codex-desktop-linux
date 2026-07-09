@@ -2219,12 +2219,35 @@ adopt_discovered_webview_server() {
     return 1
 }
 
+renderer_url_override_is_active() {
+    if truthy_env_value "${CODEX_LINUX_ALLOW_RENDERER_URL_OVERRIDE:-}" &&
+       [ -n "${ELECTRON_RENDERER_URL:-}" ] &&
+       [ "$ELECTRON_RENDERER_URL" != "$WEBVIEW_ORIGIN/" ]; then
+        return 0
+    fi
+
+    return 1
+}
+
+require_webview_entrypoint() {
+    local webview_index="$WEBVIEW_DIR/index.html"
+
+    if [ ! -f "$webview_index" ]; then
+        notify_error "$CODEX_LINUX_APP_DISPLAY_NAME webview bundle is incomplete: missing $webview_index. Rebuild the app with ./install.sh before launching."
+        exit 1
+    fi
+}
+
 start_webview_server() {
     WEBVIEW_STARTUP_PENDING=0
 
-    if [ ! -d "$WEBVIEW_DIR" ] || [ ! "$(ls -A "$WEBVIEW_DIR" 2>/dev/null)" ]; then
+    if renderer_url_override_is_active; then
+        echo "Skipping packaged webview setup because ELECTRON_RENDERER_URL override is enabled"
+        log_phase "webview_override"
         return 0
     fi
+
+    require_webview_entrypoint
 
     if adopt_existing_webview_server; then
         if webview_origin_is_reachable; then
