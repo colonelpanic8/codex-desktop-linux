@@ -5047,23 +5047,27 @@ test("restarts late-event hydration when a pending queue exists without an in-fl
   assert.deepEqual(updatedConversations, ["thread-a"]);
 });
 
-test("discovers app-server conversation hydration as a core Linux webview patch", () => {
-  const descriptor = corePatchDescriptors().find(
-    (patch) => patch.id === "linux-app-server-conversation-hydration",
-  );
+test("discovers current app-server conversation core Linux webview patches", () => {
+  const currentConversationAsset =
+    "app-initial~app-main~worktree-init-v2-page~remote-conversation-page~new-thread-panel-page~o~bj5tp28r-Dcs9S3fj.js";
+  const oldConversationAsset =
+    "app-initial~app-main~hotkey-window-thread-page~thread-app-shell-chrome~header~remote-conver~h59fr3q5-Cm3GYhJA.js";
+  const projectlessRemoteTaskAsset =
+    "app-initial~app-main~worktree-init-v2-page~remote-conversation-page~pull-requests-page~plug~kmtatxxf-DEE2TwPG.js";
 
-  assert.ok(descriptor);
-  assert.equal(descriptor.phase, "webview-asset");
-  assert.equal(descriptor.ciPolicy, "optional");
-  assert.match(String(descriptor.pattern), /thread-app-shell-chrome/);
-  assert.equal(
-    descriptor.pattern.test(
-      "app-initial~app-main~hotkey-window-thread-page~thread-app-shell-chrome~header~remote-conver~h59fr3q5-Cm3GYhJA.js",
-    ),
-    true,
-  );
-  assert.equal(descriptor.pattern.test("app-server-manager-signals-test.js"), false);
-  assert.equal(descriptor.pattern.test("remote-connections-settings-fixture.js"), false);
+  for (const id of ["linux-app-server-conversation-hydration", "linux-completed-item-recovery"]) {
+    const descriptor = corePatchDescriptors().find((patch) => patch.id === id);
+
+    assert.ok(descriptor);
+    assert.equal(descriptor.phase, "webview-asset");
+    assert.equal(descriptor.ciPolicy, "optional");
+    assert.match(String(descriptor.pattern), /worktree-init-v2-page/);
+    assert.equal(descriptor.pattern.test(currentConversationAsset), true);
+    assert.equal(descriptor.pattern.test(oldConversationAsset), false);
+    assert.equal(descriptor.pattern.test(projectlessRemoteTaskAsset), false);
+    assert.equal(descriptor.pattern.test("app-server-manager-signals-test.js"), false);
+    assert.equal(descriptor.pattern.test("remote-connections-settings-fixture.js"), false);
+  }
 });
 
 test("recovers completed stream items that arrive after local state lost their started item", () => {
