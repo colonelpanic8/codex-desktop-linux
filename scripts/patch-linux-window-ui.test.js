@@ -1017,6 +1017,32 @@ test("window controls safe-area descriptor matches current app shell chunks", ()
   );
 });
 
+test("automation_update eager descriptor matches the current dynamic tools chunk", () => {
+  const descriptor = corePatchDescriptors().find(
+    (descriptor) => descriptor.id === "automation-update-eager-tool",
+  );
+
+  assert.ok(descriptor);
+  assert.equal(
+    descriptor.pattern.test(
+      "app-initial~app-main~onboarding-page~hotkey-window-thread-page~quick-chat-window-page~chatg~k0ede4gb-old.js",
+    ),
+    false,
+  );
+  assert.equal(
+    descriptor.pattern.test(
+      "app-initial~app-main~onboarding-page~hotkey-window-thread-page~editor-diff-page~thread-app-~g4rafana-current.js",
+    ),
+    true,
+  );
+  assert.equal(
+    descriptor.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~glxlkd48-current.js",
+    ),
+    false,
+  );
+});
+
 test("patch descriptors reject unsupported ciPolicy values", () => {
   assert.throws(
     () =>
