@@ -178,6 +178,54 @@ test_extract_webview_replaces_linux_icon_assets() {
     assert_contains "$output_log" "Linux app icon applied to 2 webview asset(s)"
 }
 
+test_extract_webview_requires_entrypoint() {
+    info "Checking webview extraction rejects incomplete upstream assets"
+    local workspace="$TMP_DIR/webview-required-entrypoint"
+    local output_log="$workspace/output.log"
+
+    mkdir -p "$workspace/missing-dir/work/app-extracted" \
+        "$workspace/missing-dir/install" \
+        "$workspace/missing-index/work/app-extracted/webview/assets" \
+        "$workspace/missing-index/install"
+    printf '%s\n' 'asset' > "$workspace/missing-index/work/app-extracted/webview/assets/app-main.png"
+
+    set +e
+    (
+        SCRIPT_DIR="$REPO_DIR"
+        INSTALL_DIR="$workspace/missing-dir/install"
+        WORK_DIR="$workspace/missing-dir/work"
+        ICON_SOURCE="$workspace/icon.png"
+        CODEX_LINUX_ICON_SOURCE="$workspace/icon.png"
+        error() { echo "[ERROR] $*" >&2; exit 1; }
+        warn() { echo "[WARN] $*" >&2; }
+        # shellcheck disable=SC1091
+        source "$REPO_DIR/scripts/lib/webview-install.sh"
+        extract_webview "$workspace/Codex.app"
+    ) >"$output_log" 2>&1
+    local rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "extract_webview should fail when upstream webview directory is missing"
+    assert_contains "$output_log" "Webview directory not found"
+
+    set +e
+    (
+        SCRIPT_DIR="$REPO_DIR"
+        INSTALL_DIR="$workspace/missing-index/install"
+        WORK_DIR="$workspace/missing-index/work"
+        ICON_SOURCE="$workspace/icon.png"
+        CODEX_LINUX_ICON_SOURCE="$workspace/icon.png"
+        error() { echo "[ERROR] $*" >&2; exit 1; }
+        warn() { echo "[WARN] $*" >&2; }
+        # shellcheck disable=SC1091
+        source "$REPO_DIR/scripts/lib/webview-install.sh"
+        extract_webview "$workspace/Codex.app"
+    ) >"$output_log" 2>&1
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "extract_webview should fail when upstream webview/index.html is missing"
+    assert_contains "$output_log" "Missing webview entrypoint"
+}
+
 test_common_helper_sourcing() {
     info "Checking shared packaging helpers"
     local probe_file="$TMP_DIR/probe.txt"
@@ -186,6 +234,30 @@ test_common_helper_sourcing() {
     # shellcheck disable=SC1091
     source "$REPO_DIR/scripts/lib/package-common.sh"
     ensure_file_exists "$probe_file" "probe file"
+}
+
+test_package_layout_requires_webview_entrypoint() {
+    info "Checking package helpers reject an app without webview/index.html"
+    local workspace="$TMP_DIR/package-webview-entrypoint"
+    local app_dir="$workspace/app"
+    local output_log="$workspace/output.log"
+
+    mkdir -p "$app_dir/content/webview"
+    printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$app_dir/start.sh"
+    chmod +x "$app_dir/start.sh"
+
+    set +e
+    (
+        APP_DIR="$app_dir"
+        # shellcheck disable=SC1091
+        source "$REPO_DIR/scripts/lib/package-common.sh"
+        ensure_app_layout
+    ) >"$output_log" 2>&1
+    local rc=$?
+    set -e
+
+    [ "$rc" -ne 0 ] || fail "ensure_app_layout should fail when webview/index.html is missing"
+    assert_contains "$output_log" "Missing webview entrypoint"
 }
 
 test_package_payload_permission_normalization() {
@@ -1190,11 +1262,16 @@ test_missing_input_failure() {
     local workspace="$TMP_DIR/missing"
     local bin_dir="$workspace/bin"
     local rpm_app_dir="$workspace/rpm-app"
+    local rpm_no_webview_app_dir="$workspace/rpm-no-webview-app"
     local rpm_log="$workspace/rpm-missing-runtime.log"
+    local rpm_no_webview_log="$workspace/rpm-missing-webview.log"
 
     mkdir -p "$workspace"
     make_stub_bin_dir "$bin_dir"
     make_fake_app "$rpm_app_dir"
+    mkdir -p "$rpm_no_webview_app_dir/content/webview"
+    printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$rpm_no_webview_app_dir/start.sh"
+    chmod +x "$rpm_no_webview_app_dir/start.sh"
     cat > "$bin_dir/dpkg" <<'SCRIPT'
 #!/usr/bin/env bash
 echo amd64
@@ -1208,6 +1285,11 @@ SCRIPT
     if PATH="$bin_dir:$PATH" APP_DIR_OVERRIDE="$workspace/does-not-exist" PKG_ROOT_OVERRIDE="$workspace/deb-root" bash "$REPO_DIR/scripts/build-deb.sh" >/dev/null 2>&1; then
         fail "build-deb.sh should fail when APP_DIR is missing"
     fi
+
+    if APP_DIR_OVERRIDE="$rpm_no_webview_app_dir" PACKAGE_WITH_UPDATER=0 bash "$REPO_DIR/scripts/build-rpm.sh" >"$rpm_no_webview_log" 2>&1; then
+        fail "build-rpm.sh should fail when webview/index.html is missing"
+    fi
+    assert_contains "$rpm_no_webview_log" "Missing webview entrypoint"
 
     if APP_DIR_OVERRIDE="$rpm_app_dir" PACKAGED_RUNTIME_SOURCE="$workspace/does-not-exist.sh" bash "$REPO_DIR/scripts/build-rpm.sh" >"$rpm_log" 2>&1; then
         fail "build-rpm.sh should fail when PACKAGED_RUNTIME_SOURCE is missing"
@@ -3595,6 +3677,90 @@ esac
 EOF
 
     /usr/bin/bash "$probe" || fail "Expected managed Node PATH setup to tolerate an unset PATH"
+}
+
+test_launcher_rejects_missing_webview_entrypoint() {
+    info "Checking launcher rejects an app without webview/index.html"
+    local workspace="$TMP_DIR/launcher-webview-entrypoint"
+    local app_dir="$workspace/app"
+    local home_dir="$workspace/home"
+    local runtime_dir="$workspace/runtime"
+    local electron_marker="$workspace/electron-called"
+    local launcher_log="$home_dir/.cache/codex-desktop/launcher.log"
+
+    mkdir -p \
+        "$app_dir/.codex-linux/cold-start.d" \
+        "$app_dir/.codex-linux/env.d" \
+        "$app_dir/.codex-linux/features" \
+        "$app_dir/.codex-linux/prelaunch.d" \
+        "$app_dir/.codex-linux/electron-args.d" \
+        "$app_dir/.codex-linux/launcher.d" \
+        "$app_dir/.codex-linux/after-exit.d" \
+        "$app_dir/content/webview" \
+        "$app_dir/resources/node-runtime/bin" \
+        "$app_dir/resources/plugins/openai-bundled/.agents/plugins" \
+        "$app_dir/resources/plugins/openai-bundled/plugins" \
+        "$home_dir" \
+        "$runtime_dir"
+
+    {
+        printf '%s\n' \
+            '#!/usr/bin/env bash' \
+            'set -Eeuo pipefail' \
+            'CODEX_LINUX_APP_ID=codex-desktop' \
+            'CODEX_LINUX_APP_DISPLAY_NAME="Codex Desktop"' \
+            'CODEX_LINUX_WEBVIEW_PORT="${CODEX_WEBVIEW_PORT:-5175}"'
+        cat "$REPO_DIR/launcher/start.sh.template"
+    } > "$app_dir/start.sh"
+    chmod +x "$app_dir/start.sh"
+    cp "$REPO_DIR/launcher/webview-server.py" "$app_dir/.codex-linux/webview-server.py"
+    ln -s "$(command -v node)" "$app_dir/resources/node-runtime/bin/node"
+
+    cat > "$app_dir/electron" <<'SCRIPT'
+#!/usr/bin/env bash
+printf '%s\n' "${ELECTRON_RENDERER_URL:-}" > "$ELECTRON_MARKER"
+exit 0
+SCRIPT
+    chmod +x "$app_dir/electron"
+
+    set +e
+    timeout 20 env -i \
+        PATH="/usr/bin:/bin:/usr/local/bin" \
+        HOME="$home_dir" \
+        XDG_RUNTIME_DIR="$runtime_dir" \
+        CODEX_CLI_PATH=/bin/true \
+        CODEX_WEBVIEW_PORT=45675 \
+        ELECTRON_MARKER="$electron_marker" \
+        "$app_dir/start.sh" >/dev/null 2>&1
+    local rc=$?
+    set -e
+
+    [ "$rc" -ne 124 ] || fail "Launcher hung while handling a missing webview entrypoint"
+    [ "$rc" -ne 0 ] || fail "Launcher should fail when webview/index.html is missing"
+    [ ! -e "$electron_marker" ] || fail "Launcher should not reach Electron when webview/index.html is missing"
+    assert_contains "$launcher_log" "webview bundle is incomplete"
+
+    rm -f "$electron_marker"
+    set +e
+    timeout 20 env -i \
+        PATH="/usr/bin:/bin:/usr/local/bin" \
+        HOME="$home_dir" \
+        XDG_RUNTIME_DIR="$runtime_dir" \
+        CODEX_CLI_PATH=/bin/true \
+        CODEX_WEBVIEW_PORT=45675 \
+        CODEX_LINUX_ALLOW_RENDERER_URL_OVERRIDE=1 \
+        ELECTRON_RENDERER_URL="http://127.0.0.1:9999/" \
+        ELECTRON_MARKER="$electron_marker" \
+        "$app_dir/start.sh" >/dev/null 2>&1
+    rc=$?
+    set -e
+
+    [ "$rc" -ne 124 ] || fail "Launcher hung while using an explicit renderer URL override"
+    [ "$rc" -eq 0 ] || fail "Launcher should allow an explicit renderer URL override without local webview assets"
+    assert_file_exists "$electron_marker"
+    [ "$(cat "$electron_marker")" = "http://127.0.0.1:9999/" ] \
+        || fail "Launcher should preserve explicit renderer URL override"
+    assert_contains "$launcher_log" "Skipping packaged webview setup because ELECTRON_RENDERER_URL override is enabled"
 }
 
 test_launcher_template_sanity() {
@@ -7473,6 +7639,8 @@ EOF
 main() {
     test_common_helper_sourcing
     test_extract_webview_replaces_linux_icon_assets
+    test_extract_webview_requires_entrypoint
+    test_package_layout_requires_webview_entrypoint
     test_package_payload_permission_normalization
     test_deb_builder_smoke
     test_deb_builder_rebuilds_deleted_updater_source
@@ -7547,6 +7715,7 @@ main() {
     test_chrome_marketplace_fallback_synthesis
     test_chrome_native_host_manifest_writer
     test_launcher_managed_node_handles_unset_path
+    test_launcher_rejects_missing_webview_entrypoint
     test_launcher_template_sanity
     test_launcher_cli_resolution_policy
     test_webview_server_cache_policy
