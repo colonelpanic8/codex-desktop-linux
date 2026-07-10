@@ -48,6 +48,12 @@ scripts/dev/upstream-dmg-intel.js \
   --fail-on-blockers
 ```
 
+Add `--patch-preflight` to extract `app.asar` into an isolated temporary root
+and prove the required window patches plus the protected Computer Use and Read
+Aloud parity patches against the candidate. Raw upstream platform gates remain
+visible, but become non-blocking `patched-linux-parity` entries only when every
+exact owner patch reports `applied` or `already-applied`.
+
 Explicit baseline comparison remains available for older known-good builds:
 
 ```bash
@@ -81,6 +87,12 @@ Each run writes:
 - `plugin-map.json`: bundled plugin manifests, MCP configs, and skill files.
 - `native-binary-map.json`: native candidate paths, file type output when
   available, hashes, and protected string evidence.
+- `platform-gates.json`: macOS/Windows/Linux gate inventory with Linux parity,
+  unsupported platform, new capability, expected platform-native, and review
+  classifications.
+- `new-capabilities.json`: issue-candidate queue built from new plugins, MCP
+  tools, native binaries, bridge handlers, and platform-gated desktop feature
+  hints.
 - `map-drift.json`: baseline/candidate structural deltas for bridge handlers,
   plugin ids/files, MCP tools, native binaries, and Linux substrate gaps.
 - `drift-report.json` and `drift-report.md`: machine and human drift summaries.
@@ -88,9 +100,11 @@ Each run writes:
   newly discovered, patch-broken, or substrate-gap surfaces.
 
 The CLI stdout summary includes `decision.acceptance`, `blockersCount`,
-`reviewItemsCount`, protected-surface status counts, and whether every protected
-surface is fully present. `--fail-on-blockers` exits with status `2` after
-writing the report bundle when `decision.blockersCount` is nonzero.
+`reviewItemsCount`, `linuxParityGateBlockersCount`,
+`platformGateReviewItemsCount`, `newCapabilityIssueCandidatesCount`,
+protected-surface status counts, and whether every protected surface is fully
+present. `--fail-on-blockers` exits with status `2` after writing the report
+bundle when `decision.blockersCount` is nonzero.
 
 When a baseline is provided, the command also writes `baseline/` and
 `candidate/` subdirectories with their own inventory, protected-surface,
@@ -162,6 +176,32 @@ review item before accepting the upstream DMG.
 - `LINUX_SUBSTRATE_GAP`: upstream evidence exists, but the registry's required
   Linux substrate path is missing.
 
+## Platform Gate Classifications
+
+The platform gate map is the first place to look when a feature exists in the
+bundle but disappears from Settings, `@` mentions, menus, or plugin entrypoints.
+It classifies gates separately from protected-surface drift:
+
+- `linux-parity-drift`: Linux already has a substrate or patch owner, but
+  upstream still gates the UI or query to macOS/Windows. This is a release
+  blocker; Computer Use belongs here.
+- `patched-linux-parity`: the raw upstream gate still exists, but every exact
+  candidate preflight patch for its Linux surface applied. The gate remains in
+  the report as evidence without blocking acceptance.
+- `existing-linux-feature-drift`: protected-surface movement or patch failures
+  for features this repo already mirrors. This remains represented by the
+  protected-surface classifications above.
+- `new-upstream-capability`: new plugin, MCP tool, bridge, native sidecar, or
+  desktop feature hint that needs an issue and a Linux support decision.
+- `platform-specific-unsupported`: macOS/Windows feature with no Linux substrate
+  yet, such as Office live-control app rows.
+- `expected-platform-native`: OS-native details such as titlebar, Dock, tray, or
+  window chrome behavior that should be labeled but not patched by default.
+- `already-linux-enabled`: a platform gate already includes Linux; keep it out
+  of blocker counts.
+- `needs-review`: high-signal but ambiguous feature gate that must be triaged
+  before accepting release drift.
+
 ## Acceptance Gate
 
 The automated tests use synthetic `.app` fixtures and `app.asar.extracted`
@@ -192,3 +232,50 @@ navigation layer:
   registry, patch, or Linux substrate action is resolved. `PATCH_REVIEW` remains
   review-only unless the protected surface is also missing, partial, removed, or
   has a required patch failure.
+
+## Optional Dagger MCP
+
+The Dagger module is not the primary entry point. It exists as a self-hosted
+agent convenience wrapper around the same devcontainer-backed tool:
+
+```bash
+dagger functions
+dagger call verify-dmg-intel
+dagger call inspect-upstream-dmg-url
+dagger call inspect-upstream-dmg --candidate ./Codex.dmg export --path /tmp/codex-dmg-intel-report
+```
+
+The `inspect-upstream-dmg-url` function downloads the current upstream DMG URL
+inside Dagger, compares it to repo `Codex.dmg`, and returns a compact JSON
+summary for Codex/MCP use with `decision`, `blockers`, and review-only drift.
+The `inspect-upstream-dmg` function accepts a candidate DMG file and optional
+baseline and patch-report files, then returns the generated report directory.
+The Dagger source context ignores DMGs, build outputs, generated reports,
+`target/`, and app extraction trees; pass large DMGs as explicit file
+arguments instead of baking them into the module context.
+
+To expose it as an MCP server in Codex, add the bridge to repo-local
+`.codex/config.toml` and restart the Codex session:
+
+```toml
+[mcp_servers.codex-dmg-intel-dagger]
+command = "/path/to/codex-desktop-linux/scripts/codex-dmg-intel-dagger-mcp"
+```
+
+The bridge also exposes Dagger-native agent functions such as
+`headroom-agent-review`. By default, the launcher uses a local Headroom client
+token shape with Dagger's OpenAI-compatible LLM environment and routes calls
+through Headroom. Real upstream provider keys stay on the Headroom server:
+
+```toml
+[mcp_servers.codex-dmg-intel-dagger.env]
+DAGGER_HEADROOM_PROXY_URL = "http://10.10.10.89"
+DAGGER_HEADROOM_MODEL = "openrouter/deepseek/deepseek-v4-flash"
+DAGGER_HEADROOM_API_KEY = "headroom-local-client-token"
+```
+
+Use a pinned repo env only when Codex may start outside this checkout:
+
+```toml
+CODEX_DMG_INTEL_DAGGER_REPO = "/home/kdlocpanda/second_brain/Areas/devcontainers/codex-desktop-linux"
+```
