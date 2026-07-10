@@ -205,7 +205,7 @@ get_dmg() {
         fi
     fi
 
-    info "Downloading Codex Desktop DMG..."
+    info "Downloading ChatGPT Desktop DMG..."
     info "URL: $(redact_dmg_url "$DMG_URL")"
 
     rm -f "$tmp_dest"
