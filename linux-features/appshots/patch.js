@@ -187,7 +187,10 @@ function applyLinuxAppshotSettingsHotkeyPatch(currentSource) {
     return currentSource;
   }
 
-  const stateDataVar = currentSource.match(/\{data:([A-Za-z_$][\w$]*)\}=/)?.[1] ?? null;
+  const stateDataVar =
+    currentSource.match(/\{data:([A-Za-z_$][\w$]*)\}=/)?.[1] ??
+    currentSource.match(/\b([A-Za-z_$][\w$]*)\?\.configuredHotkey\?\?null/)?.[1] ??
+    null;
   if (stateDataVar == null) {
     if (currentSource.includes("appshot-hotkey-state") || currentSource.includes("DoubleCommand")) {
       warn("Could not find AppShots settings state binding", "Linux AppShots settings hotkey patch");
@@ -198,7 +201,7 @@ function applyLinuxAppshotSettingsHotkeyPatch(currentSource) {
   let changed = false;
   let optionsVarName = null;
   let patchedSource = currentSource.replace(
-    /((?:var\s+|,)([A-Za-z_$][\w$]*)=)(\[\{hotkey:`DoubleCommand`,label:`[^`]+`\},\{hotkey:`DoubleOption`,label:`[^`]+`\},\{hotkey:`DoubleShift`,label:`[^`]+`\}\])(?=;)/,
+    /((?:var\s+|,)([A-Za-z_$][\w$]*)=)(\[\{hotkey:`DoubleCommand`,label:`[^`]+`\},\{hotkey:`DoubleOption`,label:`[^`]+`\},\{hotkey:`DoubleShift`,label:`[^`]+`\}\])(?=[,;)}])/,
     (match, declarationPrefix, optionsVar, macOptions) => {
       changed = true;
       optionsVarName = optionsVar;
@@ -314,7 +317,7 @@ const descriptors = [
     id: "linux-appshots-availability",
     phase: "webview-asset",
     order: 1090,
-    pattern: /^appshot-availability-.*\.js$/,
+    pattern: /^(?:appshot-availability|app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3)-.*\.js$/,
     missingDescription: "AppShots availability bundle",
     skipDescription: "Linux AppShots availability patch",
     apply: applyLinuxAppshotAvailabilityPatch,

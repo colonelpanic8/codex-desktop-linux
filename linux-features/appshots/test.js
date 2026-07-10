@@ -78,6 +78,13 @@ function appshotSettingsBundleFixture() {
   ].join("");
 }
 
+function currentAppshotSettingsBundleFixture() {
+  return [
+    "var J,Y,X,Se=e((()=>{J=[`appshot-hotkey-state`],Y=o(M,()=>({queryKey:J,queryFn:async()=>{let e=C.appshotHotkeys;return e==null?{supported:!1,configuredHotkey:null,isActive:!1}:e.getState()},staleTime:k.ONE_MINUTE})),X=[{hotkey:`DoubleCommand`,label:`⌘ + ⌘`},{hotkey:`DoubleOption`,label:`⌥ + ⌥`},{hotkey:`DoubleShift`,label:`⇧ + ⇧`}]}));",
+    "function Te(){let e=(0,Q.c)(41),o=A(Y),i=null,a=()=>{},d=async()=>{},f=o?.configuredHotkey??null,p;e[6]===f?p=e[7]:(p=X.find(e=>e.hotkey===f)??null,e[6]=f,e[7]=p);let m=p,O;e[20]!==d||e[21]!==f||e[22]!==m?.hotkey?(O=X.map(e=>item({selected:e.hotkey===m?.hotkey,onSelect:()=>d(e.hotkey),children:e.label})),e[20]=d,e[21]=f,e[22]=m?.hotkey,e[23]=O):O=e[23];return O}",
+  ].join("");
+}
+
 test("appshots stays disabled until listed in features.json", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "appshots-feature-"));
   const configPath = path.join(tempDir, "features.json");
@@ -124,6 +131,17 @@ test("appshots availability descriptor matches the current bundle", () => {
   );
 
   assert.ok(descriptor.pattern.test("appshot-availability-BoK-Z77O.js"));
+  assert.ok(
+    descriptor.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3-MXsOJYYa.js",
+    ),
+  );
+  assert.equal(
+    descriptor.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~glxlkd48-Bty5T9_s.js",
+    ),
+    false,
+  );
 });
 
 test("stages the Linux bare modifier monitor helper and Wayland portal hook", () => {
@@ -338,4 +356,22 @@ test("shows Linux AppShots accelerator choices in settings", () => {
   assert.doesNotMatch(patched, /hotkey:`Ctrl\+Alt\+A`/);
   assert.match(patched, /hotkey:`DoubleCommand`,label:`\\u2318 \+ \\u2318`/);
   assert.match(patched, /hotkey:`DoubleShift`,label:`\\u21e7 \+ \\u21e7`/);
+});
+
+test("shows Linux AppShots accelerator choices in current settings chunk", () => {
+  const patched = applyPatchTwice(
+    applyLinuxAppshotSettingsHotkeyPatch,
+    currentAppshotSettingsBundleFixture(),
+  );
+
+  assert.match(patched, /codexLinuxAppshotHotkeyOptions=e=>/);
+  assert.match(
+    patched,
+    /codexLinuxAppshotHotkeyOptions\(o\)\.find\(e=>e\.hotkey===f\)/,
+  );
+  assert.match(patched, /codexLinuxAppshotHotkeyOptions\(o\)\.map/);
+  assert.doesNotMatch(patched, /\bX\.find\(/);
+  assert.doesNotMatch(patched, /\bX\.map\(/);
+  assert.match(patched, /hotkey:`DoubleOption`,label:`Alt \+ Alt`/);
+  assert.match(patched, /hotkey:`Ctrl\+Super\+A`,label:`Ctrl \+ Super \+ A`/);
 });
