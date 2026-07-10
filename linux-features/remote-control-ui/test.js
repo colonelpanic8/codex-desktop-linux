@@ -141,6 +141,38 @@ test("remote-control UI feature patches are idempotent and fail soft", () => {
   assert.match(warnings.join("\n"), /Could not find remote connections Statsig gate/);
 });
 
+test("remote-control UI descriptors match current shared shell chunks", () => {
+  const remoteConnectionsPatch = featurePatches.find((patch) => patch.id === "remote-connections-visibility");
+  const remoteControlConnectionsPatch = featurePatches.find((patch) => patch.id === "remote-control-connections-visibility");
+
+  assert.ok(remoteConnectionsPatch.pattern.test("remote-connection-visibility-test.js"));
+  assert.ok(
+    remoteConnectionsPatch.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~glxlkd48-Bty5T9_s.js",
+    ),
+  );
+  assert.equal(
+    remoteConnectionsPatch.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3-MXsOJYYa.js",
+    ),
+    false,
+  );
+
+  assert.ok(remoteControlConnectionsPatch.pattern.test("remote-control-connections-visibility-test.js"));
+  assert.ok(remoteControlConnectionsPatch.pattern.test("remote-connection-visibility-test.js"));
+  assert.ok(
+    remoteControlConnectionsPatch.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3-MXsOJYYa.js",
+    ),
+  );
+  assert.equal(
+    remoteControlConnectionsPatch.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~glxlkd48-Bty5T9_s.js",
+    ),
+    false,
+  );
+});
+
 test("remote-control UI feature patches matching webview assets and records patch report entries", () => {
   withTempFeatureConfig(["remote-control-ui"], (root) => {
     withLinuxFeatureRootEnv(root, () => {
@@ -154,11 +186,17 @@ test("remote-control UI feature patches matching webview assets and records patc
         fs.writeFileSync(path.join(tempApp, "package.json"), JSON.stringify({ name: "codex" }));
 
         fs.writeFileSync(
-          path.join(assetsDir, "remote-connection-visibility-test.js"),
+          path.join(
+            assetsDir,
+            "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~glxlkd48-Bty5T9_s.js",
+          ),
           "function c(){let e=(0,s.c)(3),{data:n}=t(a,r(i)),c=o(`4114442250`);if(n?.config[`features.remote_connections`]===!0)return!0;let l=n?.config.features;if(typeof l!=`object`||!l||Array.isArray(l))return c;let u;return e[0]!==l||e[1]!==c?(u=Object.getOwnPropertyDescriptor(l,`remote_connections`)?.value===!0||c,e[0]=l,e[1]=c,e[2]=u):u=e[2],u}",
         );
         fs.writeFileSync(
-          path.join(assetsDir, "remote-control-connections-visibility-test.js"),
+          path.join(
+            assetsDir,
+            "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3-MXsOJYYa.js",
+          ),
           "function p(){let e=t(`1042620455`),n=r(`remote_control_connections_state`);return!!e&&n?.available===!0}",
         );
         fs.writeFileSync(
@@ -182,11 +220,23 @@ test("remote-control UI feature patches matching webview assets and records patc
         );
 
         assert.match(
-          fs.readFileSync(path.join(assetsDir, "remote-connection-visibility-test.js"), "utf8"),
+          fs.readFileSync(
+            path.join(
+              assetsDir,
+              "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~glxlkd48-Bty5T9_s.js",
+            ),
+            "utf8",
+          ),
           /navigator\.userAgent\.includes\(`Linux`\)/,
         );
         assert.match(
-          fs.readFileSync(path.join(assetsDir, "remote-control-connections-visibility-test.js"), "utf8"),
+          fs.readFileSync(
+            path.join(
+              assetsDir,
+              "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3-MXsOJYYa.js",
+            ),
+            "utf8",
+          ),
           /navigator\.userAgent\.includes\(`Linux`\)/,
         );
         assert.doesNotMatch(
