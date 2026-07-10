@@ -1,5 +1,5 @@
 {
-  description = "Codex Desktop for Linux installer";
+  description = "ChatGPT Desktop for Linux installer";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -556,9 +556,9 @@ PY
                 featureIds = enabledFeatureIds featureArgs;
               in
               if featureIds == [ ] then
-                "Codex Desktop for Linux"
+                "ChatGPT Desktop for Linux"
               else
-                "Codex Desktop for Linux with ${pkgs.lib.concatStringsSep ", " featureIds} enabled";
+                "ChatGPT Desktop for Linux with ${pkgs.lib.concatStringsSep ", " featureIds} enabled";
             homepage = "https://github.com/ilysenko/codex-desktop-linux";
             license = pkgs.lib.licenses.mit;
             platforms = pkgs.lib.platforms.linux;

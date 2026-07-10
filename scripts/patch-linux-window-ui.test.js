@@ -549,7 +549,7 @@ test("build info captures DMG hash, features, distro profile, and source revisio
       appDir,
       electronVersion: "41.3.0",
       appId: "codex-desktop",
-      appDisplayName: "Codex Desktop",
+      appDisplayName: "ChatGPT Desktop",
       featuresRoot,
       env: {
         CODEX_LINUX_SOURCE_COMMIT: "abcdef1234567890",
@@ -4273,7 +4273,7 @@ test("keeps Linux desktop toggles visible with native Keyboard Shortcuts", () =>
     assert.match(linuxDesktopSource, /Compact prompt window/);
     assert.match(linuxDesktopSource, /System tray/);
     assert.match(linuxDesktopSource, /Warm start/);
-    assert.match(linuxDesktopSource, /Install updates when you close Codex/);
+    assert.match(linuxDesktopSource, /Install updates when you close ChatGPT/);
     assert.match(linuxDesktopSource, /Build information/);
     assert.match(linuxDesktopSource, /Linux source commit/);
     assert.match(linuxDesktopSource, /Copy commit/);

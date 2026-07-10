@@ -175,7 +175,7 @@ pub(crate) const DEFAULT_APP_ID: &str = "codex-desktop";
 const AUTO_INSTALL_SETTING_KEY: &str = "codex-linux-auto-update-on-exit";
 const WRAPPER_UPDATES_SETTING_KEY: &str = "codex-linux-wrapper-updates-enabled";
 
-/// Resolves the Codex Desktop app id the same way the Linux launcher and main
+/// Resolves the ChatGPT Desktop app id the same way the Linux launcher and main
 /// bundle do: `CODEX_LINUX_APP_ID`, then `CODEX_APP_ID`, then `codex-desktop`.
 /// Invalid ids fall back to the default so a malformed env value can never point
 /// the lookup at an attacker-controlled path.
