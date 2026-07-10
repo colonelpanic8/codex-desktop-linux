@@ -1321,7 +1321,10 @@ function createNativeKeyboardShortcutsSettingsFixture() {
     'function requestCodex(...args){let[method,request]=args,{params:params,select:select,signal:signal,source:source}=request??{};return rawCodex(method,params,select,signal,source)}async function rawCodex(method,params,select,signal,source){let result=(await transport.post(`vscode://codex/${method}`,JSON.stringify(params),headers(source),signal)).body;return select?select(result):result}export{requestCodex as z};',
   );
   writeAsset("general-settings-A.js", "hotkey-window-hotkey-state");
-  writeAsset("toggle-A.js", "export{t};");
+  writeAsset(
+    "toggle-A.js",
+    'function t({checked,disabled,onChange,ariaLabel}){return {role:"switch","aria-checked":checked,"aria-label":ariaLabel,disabled,onClick:()=>onChange(!checked)}}export{t};',
+  );
   writeAsset(
     "settings-row-A.js",
     "function a(e){let{label:t,description:n,control:r}=e;return null}function s(e){let{label:t,children:n}=e;return null}export{s as n,a as r};",
@@ -1359,7 +1362,10 @@ function createModernNativeKeyboardShortcutsSettingsFixture() {
     "setting-storage-A.js",
     'async function requestCodex(...args){let[request]=args,{params:params,source:source}=request;return send("vscode://codex/",params)}export{requestCodex as z};',
   );
-  writeAsset("toggle-A.js", "export{t};");
+  writeAsset(
+    "toggle-A.js",
+    'function t({checked,disabled,onChange,ariaLabel}){return {role:"switch","aria-checked":checked,"aria-label":ariaLabel,disabled,onClick:()=>onChange(!checked)}}export{t};',
+  );
   writeAsset(
     "settings-row-A.js",
     "function a(e){let{label:t,description:n,control:r}=e;return null}export{a as r};",
@@ -1427,7 +1433,10 @@ function createSplitRouteNativeKeyboardShortcutsSettingsFixture({
     "setting-storage-A.js",
     'async function requestCodex(...args){let[request]=args,{params:params,source:source}=request;return send("vscode://codex/",params)}export{requestCodex as z};',
   );
-  writeAsset("toggle-A.js", "export{t};");
+  writeAsset(
+    "toggle-A.js",
+    'function t({checked,disabled,onChange,ariaLabel}){return {role:"switch","aria-checked":checked,"aria-label":ariaLabel,disabled,onClick:()=>onChange(!checked)}}export{t};',
+  );
   writeAsset(
     "settings-row-A.js",
     "function a(e){let{label:t,description:n,control:r}=e;return null}export{a as r};",
@@ -4338,6 +4347,48 @@ test("uses a themed fallback toggle when upstream settings toggle is unavailable
     const secondResult = patchKeybindsSettingsAssets(extractedDir);
     assert.equal(secondResult.matched, true);
     assert.equal(secondResult.changed, 0);
+  } finally {
+    fs.rmSync(extractedDir, { recursive: true, force: true });
+  }
+});
+
+test("ignores settings row and toggle icon decoys from the current DMG", () => {
+  const { extractedDir, assetsDir } = createModernNativeKeyboardShortcutsSettingsFixture();
+  try {
+    fs.rmSync(path.join(assetsDir, "settings-row-A.js"));
+    fs.rmSync(path.join(assetsDir, "toggle-A.js"));
+    fs.writeFileSync(
+      path.join(assetsDir, "settings-row-disclosure-A.js"),
+      "function a(e){let{children:n,content:r,contentId:i,expanded:o}=e;return null}function c(){}export{c as n,a as t};",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(assetsDir, "toggle-left-A.js"),
+      "function createIcon(e,t){return{e,t}}var r=createIcon(`ToggleLeft`,[[`rect`,{width:`20`,height:`12`}]]);function i(){}export{i as n,r as t};",
+      "utf8",
+    );
+
+    const { value: result, warnings } = captureWarns(() => patchKeybindsSettingsAssets(extractedDir));
+
+    assert.equal(result.matched, true);
+    assert.deepEqual(warnings, []);
+    assert.equal(fs.existsSync(path.join(assetsDir, "linux-settings-row-linux.js")), true);
+    assert.equal(fs.existsSync(path.join(assetsDir, "linux-settings-toggle-linux.js")), true);
+
+    const linuxDesktopSource = fs.readFileSync(
+      path.join(assetsDir, linuxDesktopSettingsAsset),
+      "utf8",
+    );
+    assert.match(
+      linuxDesktopSource,
+      /import\{n as SettingsRow\}from"\.\/linux-settings-row-linux\.js"/,
+    );
+    assert.match(
+      linuxDesktopSource,
+      /import\{t as Toggle\}from"\.\/linux-settings-toggle-linux\.js"/,
+    );
+    assert.doesNotMatch(linuxDesktopSource, /settings-row-disclosure-A\.js/);
+    assert.doesNotMatch(linuxDesktopSource, /toggle-left-A\.js/);
   } finally {
     fs.rmSync(extractedDir, { recursive: true, force: true });
   }
