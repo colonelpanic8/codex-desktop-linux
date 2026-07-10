@@ -1021,6 +1021,32 @@ test("automation_update eager descriptor matches the current dynamic tools chunk
   );
 });
 
+test("window controls safe-area descriptor matches current app shell chunks", () => {
+  const descriptor = corePatchDescriptors().find(
+    (descriptor) => descriptor.id === "linux-window-controls-safe-area",
+  );
+
+  assert.ok(descriptor);
+  assert.equal(
+    descriptor.pattern.test(
+      "app-initial~app-main~appgen-settings-page~settings-page~skills-settings~plugins-settings~re~old.js",
+    ),
+    false,
+  );
+  assert.equal(
+    descriptor.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3-current.js",
+    ),
+    true,
+  );
+  assert.equal(
+    descriptor.pattern.test(
+      "app-initial~app-main~hotkey-window-thread-page~thread-app-shell-chrome~header~remote-conver~current.js",
+    ),
+    false,
+  );
+});
+
 test("patch descriptors reject unsupported ciPolicy values", () => {
   assert.throws(
     () =>
