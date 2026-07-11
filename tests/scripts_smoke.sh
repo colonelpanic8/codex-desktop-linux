@@ -6930,6 +6930,7 @@ JS
 
     node "$REPO_DIR/scripts/patch-linux-window-ui.js" "$extracted" >"$output_log" 2>&1
     assert_file_exists "$extracted/webview/assets/linux-desktop-settings-linux.js"
+    assert_file_exists "$extracted/webview/assets/linux-settings-toggle-linux.js"
     [ ! -f "$extracted/webview/assets/keybinds-settings-linux.js" ] || fail "Old Keybinds settings asset should not be written for current native Keyboard Shortcuts"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "function LinuxDesktopSettings"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "Linux desktop"
@@ -6939,7 +6940,7 @@ JS
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "codex-linux-system-tray-enabled"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "codex-linux-warm-start-enabled"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "codex-linux-prompt-window-enabled"
-    assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" ' as Toggle}from"./'
+    assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" 'import{t as Toggle}from"./linux-settings-toggle-linux.js"'
     assert_not_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "function LinuxSwitch"
     assert_not_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "bg-token-text-primary"
     assert_not_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "translate-x-4"
