@@ -74,10 +74,6 @@ function syntheticMainBundle() {
   ].join("");
 }
 
-function syntheticVisibilityBundle() {
-  return "function a({remoteControlConnectionsState:e,slingshotEnabled:t}){return t&&(e?.available??!0)&&e?.accessRequired!==!0}export{a as t};";
-}
-
 function syntheticCurrentMainBundle() {
   return [
     "let i=require(`node:path`),o=require(`node:fs`),s=require(`node:crypto`),b={createRequire:()=>()=>({})};",
@@ -1166,16 +1162,6 @@ test("Linux remote-control feature sync does not advertise SSH hosts to mobile",
   assert.equal(hostCalls[0].params.enablement.remote_control, true);
   assert.equal(hostCalls[1].params.hostId, "remote-ssh-discovered:devpod");
   assert.equal(hostCalls[1].params.enablement.remote_control, undefined);
-});
-
-test("Linux remote-control visibility patch allows Linux when upstream marks availability false", () => {
-  const source = syntheticVisibilityBundle();
-  const patched = applyLinuxRemoteControlVisibilityPatch(source);
-
-  assert.notEqual(patched, source);
-  assert.match(patched, /navigator\.userAgent\.includes\(`Linux`\)/);
-  assert.match(patched, /\(n\|\|t\)&&\(n\|\|\(e\?\.available\?\?!0\)\)&&e\?\.accessRequired!==!0/);
-  assert.equal(applyLinuxRemoteControlVisibilityPatch(patched), patched);
 });
 
 test("Linux remote-control visibility patch handles current settings bundle shape", () => {
@@ -2718,7 +2704,7 @@ test("remote mobile control feature participates in ASAR patching and reports", 
         );
         fs.writeFileSync(
           path.join(assetsDir, CURRENT_REMOTE_CONNECTIONS_VISIBILITY_ASSET),
-          syntheticVisibilityBundle(),
+          syntheticCurrentUsePluginVisibilityBundle(),
         );
         fs.writeFileSync(
           path.join(assetsDir, "remote-connections-settings-test.js"),
