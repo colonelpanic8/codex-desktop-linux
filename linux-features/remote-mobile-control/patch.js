@@ -58,7 +58,7 @@ const REMOTE_MOBILE_CONVERSATION_ASSET_PATTERN =
 const REMOTE_CONTROL_APP_MAIN_PAGE_ASSET_PATTERN =
   /^app-initial~app-main~page-[^.]+\.js$/u;
 const REMOTE_CONTROL_VISIBILITY_ASSET_PATTERN =
-  /^app-initial~app-main~appgen-settings-page~plugin-detail-page~new-thread-panel-page~onboardi~[^.]+\.js$/u;
+  /^app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~iufn7mg3-[^.]+\.js$/u;
 const REMOTE_MOBILE_ACTIVE_STATUS_ASSET_PATTERN =
   /^app-initial~app-main~projects-index-page~remote-conversation-page-[^.]+\.js$/u;
 const REMOTE_CONTROL_SELECTED_TAB_NEEDLE =
