@@ -7,7 +7,6 @@ const {
 } = require("../lib/minified-js.js");
 const {
   findCodexRequestWebviewAsset,
-  findImportedAsset,
   findRequiredWebviewAsset,
 } = require("../lib/assets.js");
 const {
@@ -159,12 +158,7 @@ function buildKeybindsSettingsSource({
 }
 
 function buildLinuxDesktopSettingsSource({
-  chunkAsset,
-  reactAsset,
-  reactExportName = "t",
-  jsxRuntimeAsset,
-  jsxRuntimeExportName = "t",
-  runtimeBridgeAsset = null,
+  runtimeBridgeAsset,
   vscodeApiAsset,
   vscodeApiExportName = "n",
   settingsRowAsset,
@@ -178,16 +172,7 @@ function buildLinuxDesktopSettingsSource({
   toggleAsset,
   toggleExportName = "t",
 }) {
-  const runtimeImport = runtimeBridgeAsset == null
-    ? reactAsset === jsxRuntimeAsset
-      ? `import{s as __toESM}from"./${chunkAsset}";import{${reactExportName} as __reactFactory,${jsxRuntimeExportName} as __jsxFactory}from"./${jsxRuntimeAsset}";`
-      : `import{s as __toESM}from"./${chunkAsset}";import{${reactExportName} as __reactFactory}from"./${reactAsset}";import{${jsxRuntimeExportName} as __jsxFactory}from"./${jsxRuntimeAsset}";`
-    : `import{${linuxReactRuntimeExport} as React,${linuxJsxRuntimeExport} as $}from"./${runtimeBridgeAsset}";`;
-  const runtimeInitialization = runtimeBridgeAsset == null
-    ? "var React=__toESM(__reactFactory(),1),$=__jsxFactory(),"
-    : "var ";
-
-  return `${runtimeImport}import{${vscodeApiExportName} as __post}from"./${vscodeApiAsset}";import{${settingsRowExportName} as SettingsRow}from"./${settingsRowAsset}";import{${settingsSectionExportName} as SettingsSection}from"./${settingsSectionAsset}";import{${settingsGroupExportName} as SettingsGroup}from"./${settingsGroupAsset}";import{${settingsPageExportName} as SettingsPage}from"./${settingsPageAsset}";import{${toggleExportName} as Toggle}from"./${toggleAsset}";${runtimeInitialization}KEYS={promptWindow:${JSON.stringify(linuxSettingsKeys.promptWindow)},systemTray:${JSON.stringify(linuxSettingsKeys.systemTray)},warmStart:${JSON.stringify(linuxSettingsKeys.warmStart)},autoUpdateOnExit:${JSON.stringify(linuxSettingsKeys.autoUpdateOnExit)}};${linuxDesktopSettingsControlsSource()}${linuxBuildInfoPanelSource()}function LinuxDesktopSettings(){return $.jsx(SettingsPage,{title:"Linux desktop",subtitle:"Launcher, tray, prompt window, and update behavior.",children:$.jsxs("div",{className:"flex flex-col gap-6",children:[$.jsxs(SettingsSection,{className:"gap-2",children:[$.jsx(SettingsSection.Header,{title:"Global shortcuts"}),$.jsx(SettingsSection.Content,{children:$.jsx(SettingsGroup,{children:$.jsx(LinuxToggle,{settingKey:KEYS.promptWindow,label:"Compact prompt window",description:"Allow --prompt-chat and --hotkey-window to open the compact prompt window and keep it prewarmed."})})})]}),$.jsxs(SettingsSection,{className:"gap-2",children:[$.jsx(SettingsSection.Header,{title:"Desktop integration"}),$.jsx(SettingsSection.Content,{children:$.jsxs(SettingsGroup,{children:[$.jsx(LinuxToggle,{settingKey:KEYS.systemTray,label:"System tray",description:"Show the ChatGPT system tray icon and keep the app available from the tray."}),$.jsx(LinuxToggle,{settingKey:KEYS.warmStart,label:"Warm start",description:"Use the running app for launch actions instead of starting a fresh Electron instance."})]})})]}),$.jsxs(SettingsSection,{className:"gap-2",children:[$.jsx(SettingsSection.Header,{title:"Updates"}),$.jsx(SettingsSection.Content,{children:$.jsx(SettingsGroup,{children:$.jsx(LinuxToggle,{settingKey:KEYS.autoUpdateOnExit,label:"Install updates when you close ChatGPT",description:"When on, a ready update waits for ChatGPT to close and then installs. When off, updates wait until you click Update."})})})]}),$.jsxs(SettingsSection,{className:"gap-2",children:[$.jsx(SettingsSection.Header,{title:"Build"}),$.jsx(SettingsSection.Content,{children:$.jsx(SettingsGroup,{children:$.jsx(LinuxBuildInfoPanel,{})})})]})]})})}export{LinuxDesktopSettings,LinuxDesktopSettings as default};\n//# sourceMappingURL=${linuxDesktopSettingsAsset}.map\n`;
+  return `import{${linuxReactRuntimeExport} as React,${linuxJsxRuntimeExport} as $}from"./${runtimeBridgeAsset}";import{${vscodeApiExportName} as __post}from"./${vscodeApiAsset}";import{${settingsRowExportName} as SettingsRow}from"./${settingsRowAsset}";import{${settingsSectionExportName} as SettingsSection}from"./${settingsSectionAsset}";import{${settingsGroupExportName} as SettingsGroup}from"./${settingsGroupAsset}";import{${settingsPageExportName} as SettingsPage}from"./${settingsPageAsset}";import{${toggleExportName} as Toggle}from"./${toggleAsset}";var KEYS={promptWindow:${JSON.stringify(linuxSettingsKeys.promptWindow)},systemTray:${JSON.stringify(linuxSettingsKeys.systemTray)},warmStart:${JSON.stringify(linuxSettingsKeys.warmStart)},autoUpdateOnExit:${JSON.stringify(linuxSettingsKeys.autoUpdateOnExit)}};${linuxDesktopSettingsControlsSource()}${linuxBuildInfoPanelSource()}function LinuxDesktopSettings(){return $.jsx(SettingsPage,{title:"Linux desktop",subtitle:"Launcher, tray, prompt window, and update behavior.",children:$.jsxs("div",{className:"flex flex-col gap-6",children:[$.jsxs(SettingsSection,{className:"gap-2",children:[$.jsx(SettingsSection.Header,{title:"Global shortcuts"}),$.jsx(SettingsSection.Content,{children:$.jsx(SettingsGroup,{children:$.jsx(LinuxToggle,{settingKey:KEYS.promptWindow,label:"Compact prompt window",description:"Allow --prompt-chat and --hotkey-window to open the compact prompt window and keep it prewarmed."})})})]}),$.jsxs(SettingsSection,{className:"gap-2",children:[$.jsx(SettingsSection.Header,{title:"Desktop integration"}),$.jsx(SettingsSection.Content,{children:$.jsxs(SettingsGroup,{children:[$.jsx(LinuxToggle,{settingKey:KEYS.systemTray,label:"System tray",description:"Show the ChatGPT system tray icon and keep the app available from the tray."}),$.jsx(LinuxToggle,{settingKey:KEYS.warmStart,label:"Warm start",description:"Use the running app for launch actions instead of starting a fresh Electron instance."})]})})]}),$.jsxs(SettingsSection,{className:"gap-2",children:[$.jsx(SettingsSection.Header,{title:"Updates"}),$.jsx(SettingsSection.Content,{children:$.jsx(SettingsGroup,{children:$.jsx(LinuxToggle,{settingKey:KEYS.autoUpdateOnExit,label:"Install updates when you close ChatGPT",description:"When on, a ready update waits for ChatGPT to close and then installs. When off, updates wait until you click Update."})})})]}),$.jsxs(SettingsSection,{className:"gap-2",children:[$.jsx(SettingsSection.Header,{title:"Build"}),$.jsx(SettingsSection.Content,{children:$.jsx(SettingsGroup,{children:$.jsx(LinuxBuildInfoPanel,{})})})]})]})})}export{LinuxDesktopSettings,LinuxDesktopSettings as default};\n//# sourceMappingURL=${linuxDesktopSettingsAsset}.map\n`;
 }
 
 function inferSettingsRowExportName(source) {
@@ -281,11 +266,7 @@ function inferRuntimeDependenciesFromSettingsSource(source) {
 
   return {
     jsxRuntimeLocalName: jsxLocal,
-    jsxRuntimeAsset: jsxBinding.assetName,
-    jsxRuntimeExportName: jsxBinding.exportName,
     reactRuntimeLocalName: reactLocal,
-    reactAsset: reactBinding.assetName,
-    reactExportName: reactBinding.exportName,
   };
 }
 
@@ -324,14 +305,8 @@ function tryFindRequiredWebviewAsset(webviewAssetsDir, namePattern, requiredCont
   }
 }
 
-function linuxSettingsFallbackComponents({
-  jsxRuntimeAsset,
-  jsxRuntimeExportName,
-  runtimeBridgeAsset = null,
-}) {
-  const jsxImport = runtimeBridgeAsset == null
-    ? `import{${jsxRuntimeExportName} as __jsxFactory}from"./${jsxRuntimeAsset}";var $=__jsxFactory();`
-    : `import{${linuxJsxRuntimeExport} as $}from"./${runtimeBridgeAsset}";`;
+function linuxSettingsFallbackComponents({ runtimeBridgeAsset }) {
+  const jsxImport = `import{${linuxJsxRuntimeExport} as $}from"./${runtimeBridgeAsset}";`;
 
   return {
     settingsRow: {
@@ -379,28 +354,12 @@ function resolveSettingsAssetDependencies(extractedDir, { includeHotkeySettings 
     runtimeDependencies = inferRuntimeDependenciesFromSettingsSource(nativeKeyboardShortcutsSource);
   }
 
-  let jsxRuntimeAsset;
-  let jsxRuntimeExportName;
-  let reactAsset;
-  let reactExportName;
-  if (runtimeDependencies != null) {
-    ({
-      jsxRuntimeAsset,
-      jsxRuntimeExportName,
-      reactAsset,
-      reactExportName,
-    } = runtimeDependencies);
-  } else {
-    jsxRuntimeAsset = findRequiredWebviewAsset(webviewAssetsDir, /^jsx-runtime-.*\.js$/, "react.transitional.element", "JSX runtime asset");
-    const jsxRuntimeSource = fs.readFileSync(path.join(webviewAssetsDir, jsxRuntimeAsset), "utf8");
-    const jsxExportsReactFactory = /export\{[^}]*\bn\b/.test(jsxRuntimeSource);
-    reactAsset = jsxExportsReactFactory
-      ? jsxRuntimeAsset
-      : findRequiredWebviewAsset(webviewAssetsDir, /^react-.*\.js$/, "react.transitional.element", "React asset");
-    reactExportName = jsxExportsReactFactory ? "n" : "t";
-    jsxRuntimeExportName = "t";
+  if (runtimeDependencies == null) {
+    throw new Error(
+      "Required Keybinds settings patch failed: could not infer the initialized React runtime from the current upstream Keyboard Shortcuts settings asset",
+    );
   }
-  const chunkAsset = findImportedAsset(webviewAssetsDir, reactAsset, "React shared chunk asset");
+
   const { assetName: vscodeApiAsset, exportName: vscodeApiExportName } =
     findCodexRequestWebviewAsset(webviewAssetsDir);
   const hotkeySettingsAsset = includeHotkeySettings
@@ -411,24 +370,18 @@ function resolveSettingsAssetDependencies(extractedDir, { includeHotkeySettings 
         "hotkey settings asset",
       )
     : null;
-  const runtimeBridgeAsset = runtimeDependencies == null
-    ? null
-    : nativeKeyboardShortcutsAsset;
+  const runtimeBridgeAsset = nativeKeyboardShortcutsAsset;
   const fallbackComponents = linuxSettingsFallbackComponents({
-    jsxRuntimeAsset,
-    jsxRuntimeExportName,
     runtimeBridgeAsset,
   });
   const generatedAssets = [];
-  if (runtimeDependencies != null) {
-    generatedAssets.push({
-      filePath: path.join(webviewAssetsDir, nativeKeyboardShortcutsAsset),
-      source: addLinuxSettingsRuntimeBridgeExports(
-        nativeKeyboardShortcutsSource,
-        runtimeDependencies,
-      ),
-    });
-  }
+  generatedAssets.push({
+    filePath: path.join(webviewAssetsDir, nativeKeyboardShortcutsAsset),
+    source: addLinuxSettingsRuntimeBridgeExports(
+      nativeKeyboardShortcutsSource,
+      runtimeDependencies,
+    ),
+  });
   const useFallbackComponent = (componentName) => {
     const component = fallbackComponents[componentName];
     generatedAssets.push({
@@ -477,11 +430,6 @@ function resolveSettingsAssetDependencies(extractedDir, { includeHotkeySettings 
   const toggleDependency = useFallbackComponent("settingsToggle");
 
   return {
-    chunkAsset,
-    reactAsset,
-    reactExportName,
-    jsxRuntimeAsset,
-    jsxRuntimeExportName,
     runtimeBridgeAsset,
     vscodeApiAsset,
     vscodeApiExportName,
@@ -497,17 +445,6 @@ function resolveSettingsAssetDependencies(extractedDir, { includeHotkeySettings 
     toggleAsset: toggleDependency.assetName,
     toggleExportName: toggleDependency.exportName,
     generatedAssets,
-  };
-}
-
-function resolveKeybindsSettingsAsset(extractedDir) {
-  const webviewAssetsDir = path.join(extractedDir, "webview", "assets");
-  const dependencies = resolveSettingsAssetDependencies(extractedDir);
-
-  return {
-    filePath: path.join(webviewAssetsDir, keybindsSettingsAsset),
-    source: buildKeybindsSettingsSource(dependencies),
-    generatedAssets: dependencies.generatedAssets,
   };
 }
 
@@ -1189,5 +1126,4 @@ module.exports = {
   linuxKeybindOverridesKey,
   patchKeybindsSettingsAssets,
   resolveLinuxDesktopSettingsAsset,
-  resolveKeybindsSettingsAsset,
 };
