@@ -640,6 +640,9 @@ function sanitizeSourceInfo(info) {
   const remote = sanitizeGitRemoteUrl(info.remote);
   return {
     ...info,
+    commitMessage: info.commitMessage
+      ?? process.env.CODEX_LINUX_SOURCE_COMMIT_MESSAGE?.trim()
+      ?? (info.commit == null ? null : git(["log", "-1", "--format=%s", info.commit])),
     version: info.version ?? readWrapperVersion(repoDir),
     remote,
     commitUrl: githubCommitUrl(remote, info.commit),
@@ -686,11 +689,14 @@ const stagedInfo = readJsonFile(path.join(repoDir, ".codex-linux", "source-info.
 const commit = process.env.CODEX_LINUX_SOURCE_COMMIT?.trim() || git(["rev-parse", "HEAD"]);
 const status = git(["status", "--porcelain"]);
 const remote = sanitizeGitRemoteUrl(process.env.CODEX_LINUX_SOURCE_REMOTE?.trim() || git(["remote", "get-url", "origin"]));
+const commitMessage = process.env.CODEX_LINUX_SOURCE_COMMIT_MESSAGE?.trim()
+  || (commit == null ? null : git(["log", "-1", "--format=%s", commit]));
 const info = stagedInfo?.commit
   ? sanitizeSourceInfo(stagedInfo)
   : {
       commit,
       shortCommit: commit == null ? null : commit.slice(0, 12),
+      commitMessage,
       version: readWrapperVersion(repoDir),
       branch: process.env.CODEX_LINUX_SOURCE_BRANCH?.trim() || git(["branch", "--show-current"]),
       remote,

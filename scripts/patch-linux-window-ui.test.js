@@ -627,6 +627,7 @@ test("build info captures DMG hash, features, distro profile, and source revisio
       featuresRoot,
       env: {
         CODEX_LINUX_SOURCE_COMMIT: "abcdef1234567890",
+        CODEX_LINUX_SOURCE_COMMIT_MESSAGE: "Link build information to its source commit",
         CODEX_LINUX_SOURCE_BRANCH: "main",
         CODEX_LINUX_SOURCE_REMOTE: "https://ghp_secret-token@github.com/example/codex-desktop-linux.git",
         SOURCE_DATE_EPOCH: "1710000000",
@@ -647,6 +648,7 @@ test("build info captures DMG hash, features, distro profile, and source revisio
     assert.equal(info.upstreamDmg.sha256, "e33df8d941faed4fdc3bb688fea70572931e81a6e0c2603b810338177148dfa2");
     assert.equal(info.upstreamDmg.appVersion, "1.2.3");
     assert.equal(info.source.shortCommit, "abcdef123456");
+    assert.equal(info.source.commitMessage, "Link build information to its source commit");
     assert.equal(info.source.remote, "https://github.com/example/codex-desktop-linux.git");
     assert.equal(info.source.commitUrl, "https://github.com/example/codex-desktop-linux/commit/abcdef1234567890");
     assert.equal(info.packageProfile.id, "debian-family");
@@ -3816,9 +3818,15 @@ test("adds Linux build information to the tray menu", () => {
   assert.match(patched, /Enabled features:/);
   assert.match(patched, /Upstream DMG SHA256:/);
   assert.match(patched, /Linux source commit:/);
+  assert.match(patched, /Commit message:/);
   assert.match(patched, /Source commit URL:/);
-  assert.match(patched, /Open Source Commit/);
-  assert.match(patched, /Open Metadata File/);
+  assert.match(patched, /<a href=/);
+  assert.match(
+    patched,
+    /\[`Linux source commit`,__codexBuildInfoCommitValue,__codexBuildInfoResult\.commitUrl\]/,
+  );
+  assert.match(patched, /new n\.BrowserWindow/);
+  assert.match(patched, /setWindowOpenHandler/);
   assert.match(patched, /shell\?\.openExternal/);
   assert.match(patched, /shell\?\.openPath/);
 });
@@ -3845,7 +3853,7 @@ test("Linux build information helper locals do not shadow minified module bindin
     "let a=require(`electron`),l=require(`node:fs`),s=require(`node:path`),e={bn:{help:`help`}};const h={\"get-global-state\":async({key:a})=>({value:this.globalState.get(a)}),\"set-global-state\":async({key:a,value:b,origin:c})=>(this.setGlobalStateValue(a,b,c),{success:!0})};let $e=[{role:`help`,id:e.bn.help,submenu:[{label:`Codex Documentation`,click:()=>{a.shell.openExternal(`https://developers.openai.com/codex/app`)}}]}],et=a.Menu.buildFromTemplate($e);a.Menu.setApplicationMenu(et);";
   const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, source);
 
-  assert.match(patched, /await a\.dialog\?\.showMessageBox/);
+  assert.match(patched, /new a\.BrowserWindow/);
   assert.match(patched, /\(0,s\.join\)\(process\.resourcesPath/);
   assert.match(patched, /l\.existsSync\(__codexBuildInfoPath\)/);
   assert.doesNotMatch(patched, /let a=await a\.dialog/);

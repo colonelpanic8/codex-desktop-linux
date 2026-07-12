@@ -865,6 +865,7 @@ TOML
     cat > "$source_info" <<'JSON'
 {
   "commit": "0123456789012345678901234567890123456789",
+  "commitMessage": "Preserve build source metadata",
   "branch": "main",
   "remote": "https://builder:secret-token@example.com/org/repo.git",
   "provenance": "packaged-update-builder",
@@ -889,6 +890,9 @@ if (info.commit !== "0123456789012345678901234567890123456789") {
 }
 if (info.version !== "0.8.1") {
   throw new Error(`unexpected version: ${info.version}`);
+}
+if (info.commitMessage !== "Preserve build source metadata") {
+  throw new Error(`unexpected commit message: ${info.commitMessage}`);
 }
 if (info.remote !== "https://example.com/org/repo.git") {
   throw new Error(`unexpected remote: ${info.remote}`);

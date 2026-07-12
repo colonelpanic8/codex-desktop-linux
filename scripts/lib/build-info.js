@@ -138,9 +138,12 @@ function sourceInfoFromGit(repoDir, env = process.env) {
   const commit = overrideCommit || runGit(repoDir, ["rev-parse", "HEAD"]);
   const status = runGit(repoDir, ["status", "--porcelain"]);
   const remote = sanitizeGitRemoteUrl(env.CODEX_LINUX_SOURCE_REMOTE?.trim() || runGit(repoDir, ["remote", "get-url", "origin"]));
+  const commitMessage = env.CODEX_LINUX_SOURCE_COMMIT_MESSAGE?.trim()
+    || (commit == null ? null : runGit(repoDir, ["log", "-1", "--format=%s", commit]));
   return {
     commit,
     shortCommit: commit == null ? null : commit.slice(0, 12),
+    commitMessage,
     version: readWrapperVersion(repoDir),
     branch: env.CODEX_LINUX_SOURCE_BRANCH?.trim() || runGit(repoDir, ["branch", "--show-current"]),
     remote,
@@ -154,8 +157,12 @@ function sourceInfo(repoDir, env = process.env) {
   const sourceInfoPath = path.join(repoDir, ".codex-linux", "source-info.json");
   const staged = readJsonFile(sourceInfoPath);
   if (staged != null && typeof staged === "object" && !Array.isArray(staged)) {
+    const sanitized = sanitizeSourceInfo(staged);
     return {
-      ...sanitizeSourceInfo(staged),
+      ...sanitized,
+      commitMessage: sanitized.commitMessage
+        ?? env.CODEX_LINUX_SOURCE_COMMIT_MESSAGE?.trim()
+        ?? (sanitized.commit == null ? null : runGit(repoDir, ["log", "-1", "--format=%s", sanitized.commit])),
       version: staged.version ?? readWrapperVersion(repoDir),
       provenance: staged.provenance ?? "packaged-update-builder",
     };
@@ -167,6 +174,7 @@ function sourceInfo(repoDir, env = process.env) {
   return {
     commit: env.CODEX_LINUX_SOURCE_COMMIT?.trim() || null,
     shortCommit: env.CODEX_LINUX_SOURCE_COMMIT?.trim()?.slice(0, 12) || null,
+    commitMessage: env.CODEX_LINUX_SOURCE_COMMIT_MESSAGE?.trim() || null,
     version: readWrapperVersion(repoDir),
     branch: env.CODEX_LINUX_SOURCE_BRANCH?.trim() || null,
     remote: sanitizeGitRemoteUrl(env.CODEX_LINUX_SOURCE_REMOTE?.trim() || null),
