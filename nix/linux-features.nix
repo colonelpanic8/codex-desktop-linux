@@ -2,6 +2,7 @@
 let
   supportedFeatureIds = [
     "appshots"
+    "build-info-ui"
     "frameless-titlebar"
     "global-dictation"
     "mcp-helper-reaper"

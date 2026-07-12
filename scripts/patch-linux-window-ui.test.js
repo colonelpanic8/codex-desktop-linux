@@ -75,7 +75,6 @@ const {
   applyLinuxWindowOptionsPatch,
 } = require("./patches/impl/main-process/window.js");
 const {
-  applyLinuxBuildInfoTrayPatch,
   applyLinuxSingleInstancePatch,
   applyLinuxTrayPatch,
 } = require("./patches/impl/main-process/tray.js");
@@ -145,7 +144,6 @@ const {
 } = require("./ci/validate-patch-report.js");
 const {
   buildInfo,
-  githubCommitUrl,
   packageProfile,
   sourceInfo,
 } = require("./lib/build-info.js");
@@ -627,7 +625,6 @@ test("build info captures DMG hash, features, distro profile, and source revisio
       featuresRoot,
       env: {
         CODEX_LINUX_SOURCE_COMMIT: "abcdef1234567890",
-        CODEX_LINUX_SOURCE_COMMIT_MESSAGE: "Link build information to its source commit",
         CODEX_LINUX_SOURCE_BRANCH: "main",
         CODEX_LINUX_SOURCE_REMOTE: "https://ghp_secret-token@github.com/example/codex-desktop-linux.git",
         SOURCE_DATE_EPOCH: "1710000000",
@@ -648,9 +645,7 @@ test("build info captures DMG hash, features, distro profile, and source revisio
     assert.equal(info.upstreamDmg.sha256, "e33df8d941faed4fdc3bb688fea70572931e81a6e0c2603b810338177148dfa2");
     assert.equal(info.upstreamDmg.appVersion, "1.2.3");
     assert.equal(info.source.shortCommit, "abcdef123456");
-    assert.equal(info.source.commitMessage, "Link build information to its source commit");
     assert.equal(info.source.remote, "https://github.com/example/codex-desktop-linux.git");
-    assert.equal(info.source.commitUrl, "https://github.com/example/codex-desktop-linux/commit/abcdef1234567890");
     assert.equal(info.packageProfile.id, "debian-family");
     assert.equal(info.packageProfile.packageManager, "apt");
     assert.deepEqual(info.linuxFeatures.enabled, ["read-aloud", "open-target-discovery"]);
@@ -683,24 +678,10 @@ test("build info sanitizes staged source metadata from packaged update-builder",
 
     const info = sourceInfo(tempRoot, {});
     assert.equal(info.remote, "https://example.com/org/repo.git");
-    assert.equal(info.commitUrl, null);
     assert.equal(info.sourceInfoPath, undefined);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
-});
-
-test("build info derives GitHub commit links from common remote forms", () => {
-  assert.equal(
-    githubCommitUrl("git@github.com:ilysenko/codex-desktop-linux.git", "0123456789abcdef"),
-    "https://github.com/ilysenko/codex-desktop-linux/commit/0123456789abcdef",
-  );
-  assert.equal(
-    githubCommitUrl("ssh://git@github.com/ilysenko/codex-desktop-linux.git", "fedcba9876543210"),
-    "https://github.com/ilysenko/codex-desktop-linux/commit/fedcba9876543210",
-  );
-  assert.equal(githubCommitUrl("https://example.com/org/repo.git", "0123456789abcdef"), null);
-  assert.equal(githubCommitUrl("https://github.com/org/repo.git", "not-a-sha"), null);
 });
 
 test("package profile distinguishes Fedora package managers by major version", () => {
@@ -930,7 +911,6 @@ test("default core patch descriptors are grouped and unique", () => {
     "linux-worker-file-manager",
     "linux-terminal-user-path",
     "linux-tray",
-    "linux-build-info-tray",
     "linux-single-instance",
     "linux-computer-use-ui-feature",
     "linux-computer-use-plugin-gate",
@@ -3809,92 +3789,6 @@ test("adds Linux tray support even when About dialog already uses the bundled ic
   );
 });
 
-test("adds Linux build information to the tray menu", () => {
-  const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, `${mainBundlePrefix}${trayBundleFixture()}`);
-
-  assert.match(patched, /function codexLinuxShowBuildInfo\(\)/);
-  assert.match(patched, /codex-linux-build-info\.json/);
-  assert.match(patched, /label:`Build Information`,click:\(\)=>\{codexLinuxShowBuildInfo\(\)\}/);
-  assert.match(patched, /Enabled features:/);
-  assert.match(patched, /Upstream DMG SHA256:/);
-  assert.match(patched, /Linux source commit:/);
-  assert.match(patched, /Commit message:/);
-  assert.match(patched, /Source commit URL:/);
-  assert.match(patched, /<a href=/);
-  assert.match(
-    patched,
-    /\[`Linux source commit`,__codexBuildInfoCommitValue,__codexBuildInfoResult\.commitUrl\]/,
-  );
-  assert.match(patched, /new n\.BrowserWindow/);
-  assert.match(patched, /setWindowOpenHandler/);
-  assert.match(patched, /shell\?\.openExternal/);
-  assert.match(patched, /shell\?\.openPath/);
-});
-
-test("adds Linux build information request handlers for renderer settings", () => {
-  const source =
-    "let n=require(`electron`),o=require(`node:fs`),i=require(`node:path`),e={bn:{help:`help`}};const h={\"get-global-state\":async({key:a})=>({value:this.globalState.get(a)}),\"set-global-state\":async({key:a,value:b,origin:c})=>(this.setGlobalStateValue(a,b,c),{success:!0})};let $e=[{role:`help`,id:e.bn.help,submenu:[{label:`Codex Documentation`,click:()=>{n.shell.openExternal(`https://developers.openai.com/codex/app`)}}]}],et=n.Menu.buildFromTemplate($e);n.Menu.setApplicationMenu(et);";
-  const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, source);
-
-  assert.match(patched, /function codexLinuxGetBuildInfo\(\)/);
-  assert.match(patched, /"codex-linux-get-build-info":async\(\)=>codexLinuxGetBuildInfo\(\)/);
-  assert.match(
-    patched,
-    /"codex-linux-open-build-info-commit":async\(\)=>codexLinuxOpenBuildInfoCommit\(\)/,
-  );
-  assert.match(
-    patched,
-    /"codex-linux-show-build-info":async\(\)=>\{await codexLinuxShowBuildInfo\(\);return\{success:!0\}\}/,
-  );
-});
-
-test("Linux build information helper locals do not shadow minified module bindings", () => {
-  const source =
-    "let a=require(`electron`),l=require(`node:fs`),s=require(`node:path`),e={bn:{help:`help`}};const h={\"get-global-state\":async({key:a})=>({value:this.globalState.get(a)}),\"set-global-state\":async({key:a,value:b,origin:c})=>(this.setGlobalStateValue(a,b,c),{success:!0})};let $e=[{role:`help`,id:e.bn.help,submenu:[{label:`Codex Documentation`,click:()=>{a.shell.openExternal(`https://developers.openai.com/codex/app`)}}]}],et=a.Menu.buildFromTemplate($e);a.Menu.setApplicationMenu(et);";
-  const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, source);
-
-  assert.match(patched, /new a\.BrowserWindow/);
-  assert.match(patched, /\(0,s\.join\)\(process\.resourcesPath/);
-  assert.match(patched, /l\.existsSync\(__codexBuildInfoPath\)/);
-  assert.doesNotMatch(patched, /let a=await a\.dialog/);
-  assert.doesNotMatch(patched, /let s=\[\]/);
-});
-
-test("Linux build information request handlers are inserted into the handler table", () => {
-  const source =
-    "let a=require(`electron`),l=require(`node:fs`),s=require(`node:path`),e={bn:{help:`help`}};const h={\"is-copilot-api-available\":async()=>({available:!1}),\"get-global-state\":async({key:e})=>({value:this.globalState.get(e)}),\"set-global-state\":async({key:e,value:t,origin:n})=>(this.setGlobalStateValue(e,t,n),{success:!0})};let $e=[{role:`help`,id:e.bn.help,submenu:[{label:`Codex Documentation`,click:()=>{a.shell.openExternal(`https://developers.openai.com/codex/app`)}}]}],et=a.Menu.buildFromTemplate($e);a.Menu.setApplicationMenu(et);";
-  const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, source);
-
-  assert.match(
-    patched,
-    /"is-copilot-api-available":async\(\)=>\(\{available:!1\}\),"codex-linux-get-build-info":async\(\)=>codexLinuxGetBuildInfo\(\),"codex-linux-open-build-info-commit"/,
-  );
-  assert.doesNotMatch(patched, /"is-copilot-api-available":async\(\)=>\(\{"codex-linux-get-build-info"/);
-});
-
-test("adds Linux build information to current tray menu shape", () => {
-  const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, `${mainBundlePrefix}${currentTrayMenuBundleFixture()}`);
-
-  assert.match(patched, /function codexLinuxShowBuildInfo\(\)/);
-  assert.match(
-    patched,
-    /getNativeTrayMenuItems\(\)\{let\{pinnedThreads:e,[^]*?;return\[\.\.\.process\.platform===`linux`\?\[\{label:`Build Information`,click:\(\)=>\{codexLinuxShowBuildInfo\(\)\}\},\{type:`separator`\}\]:\[\],\.\.\.h/,
-  );
-});
-
-test("adds Linux build information to the app Help menu", () => {
-  const source =
-    "let n=require(`electron`),o=require(`node:fs`),i=require(`node:path`),e={bn:{help:`help`}};let $e=[{role:`help`,id:e.bn.help,submenu:[{label:`Codex Documentation`,click:()=>{n.shell.openExternal(`https://developers.openai.com/codex/app`)}}]}],et=n.Menu.buildFromTemplate($e);n.Menu.setApplicationMenu(et);";
-  const patched = applyPatchTwice(applyLinuxBuildInfoTrayPatch, source);
-
-  assert.match(patched, /function codexLinuxShowBuildInfo\(\)/);
-  assert.doesNotThrow(() => new Function(patched));
-  assert.match(
-    patched,
-    /\{role:`help`,id:e\.bn\.help,submenu:\[\.\.\.process\.platform===`linux`\?\[\{label:`Build Information`,click:\(\)=>\{codexLinuxShowBuildInfo\(\)\}\},\{type:`separator`\}\]:\[\],\{label:`Codex Documentation`/,
-  );
-});
-
 function currentAboutDialogBundleFixture() {
   return [
     "let c=require(`electron`),a={s:()=>null};",
@@ -5051,23 +4945,10 @@ test("keeps Linux desktop toggles visible with native Keyboard Shortcuts", () =>
     assert.match(linuxDesktopSource, /System tray/);
     assert.match(linuxDesktopSource, /Warm start/);
     assert.match(linuxDesktopSource, /Install updates when you close ChatGPT/);
-    assert.match(linuxDesktopSource, /Build information/);
-    assert.match(linuxDesktopSource, /Linux source commit/);
-    assert.match(linuxDesktopSource, /Copy commit/);
-    assert.match(linuxDesktopSource, /Open on GitHub/);
-    assert.match(linuxDesktopSource, /"Linux source commit":\[\{key:"copyCommit"/);
-    assert.match(linuxDesktopSource, /"Generated":\[\{key:"refresh"/);
-    assert.match(linuxDesktopSource, /"Metadata file":\[\{key:"details"/);
-    assert.match(linuxDesktopSource, /control:null/);
-    assert.match(linuxDesktopSource, /cursor-pointer/);
-    assert.match(linuxDesktopSource, /disabled:cursor-not-allowed/);
-    assert.doesNotMatch(
-      linuxDesktopSource,
-      /control:\$\.jsxs\("div",\{className:"flex flex-wrap items-center justify-end gap-2"/,
-    );
-    assert.doesNotMatch(linuxDesktopSource, /Source commit URL/);
-    assert.match(linuxDesktopSource, /href:url/);
-    assert.match(linuxDesktopSource, /codex-linux-get-build-info/);
+    assert.match(linuxDesktopSource, /var LinuxDesktopSettingsExtensions=\[\]/);
+    assert.match(linuxDesktopSource, /LinuxDesktopSettingsExtensionSlot/);
+    assert.doesNotMatch(linuxDesktopSource, /Build information/);
+    assert.doesNotMatch(linuxDesktopSource, /codex-linux-get-build-info/);
     assert.match(linuxDesktopSource, /codex-linux-system-tray-enabled/);
     assert.match(linuxDesktopSource, /codex-linux-auto-update-on-exit/);
     assert.match(linuxDesktopSource, /import\{r as SettingsRow\}from"\.\/settings-row-A\.js"/);
@@ -5080,7 +4961,6 @@ test("keeps Linux desktop toggles visible with native Keyboard Shortcuts", () =>
     assert.doesNotMatch(linuxDesktopSource, /React\.use(State|Effect|Callback)/);
     assert.doesNotMatch(linuxDesktopSource, /function useLinuxSetting/);
     assert.match(linuxDesktopSource, /class LinuxToggle extends React\.Component/);
-    assert.match(linuxDesktopSource, /class LinuxBuildInfoPanel extends React\.Component/);
     assert.match(
       linuxDesktopSource,
       /control:\$\.jsx\(Toggle,\{checked:value,disabled:isLoading,onChange:this\.update,ariaLabel:label\}\)/,
@@ -5415,11 +5295,10 @@ test("adds Linux desktop settings when native shortcuts use a consolidated setti
       "utf8",
     );
     assert.match(linuxDesktopSource, /Linux desktop/);
-    assert.match(linuxDesktopSource, /Build information/);
-    assert.match(linuxDesktopSource, /codex-linux-get-build-info/);
-    assert.match(linuxDesktopSource, /Open on GitHub/);
-    assert.match(linuxDesktopSource, /href:url/);
-    assert.doesNotMatch(linuxDesktopSource, /Source commit URL/);
+    assert.match(linuxDesktopSource, /var LinuxDesktopSettingsExtensions=\[\]/);
+    assert.match(linuxDesktopSource, /LinuxDesktopSettingsExtensionSlot/);
+    assert.doesNotMatch(linuxDesktopSource, /Build information/);
+    assert.doesNotMatch(linuxDesktopSource, /codex-linux-get-build-info/);
     assert.match(linuxDesktopSource, /import\{R as __reactFactory,I as __jsxFactory\}from"\.\/shared-runtime-A\.js"/);
     assert.match(
       linuxDesktopSource,

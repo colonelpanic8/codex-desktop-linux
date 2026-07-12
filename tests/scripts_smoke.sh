@@ -865,7 +865,6 @@ TOML
     cat > "$source_info" <<'JSON'
 {
   "commit": "0123456789012345678901234567890123456789",
-  "commitMessage": "Preserve build source metadata",
   "branch": "main",
   "remote": "https://builder:secret-token@example.com/org/repo.git",
   "provenance": "packaged-update-builder",
@@ -890,9 +889,6 @@ if (info.commit !== "0123456789012345678901234567890123456789") {
 }
 if (info.version !== "0.8.1") {
   throw new Error(`unexpected version: ${info.version}`);
-}
-if (info.commitMessage !== "Preserve build source metadata") {
-  throw new Error(`unexpected commit message: ${info.commitMessage}`);
 }
 if (info.remote !== "https://example.com/org/repo.git") {
   throw new Error(`unexpected remote: ${info.remote}`);
@@ -7694,7 +7690,8 @@ JS
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "Linux desktop"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "System tray"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "Warm start"
-    assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "Build information"
+    assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "LinuxDesktopSettingsExtensionSlot"
+    assert_not_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "Build information"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "codex-linux-system-tray-enabled"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "codex-linux-warm-start-enabled"
     assert_contains "$extracted/webview/assets/linux-desktop-settings-linux.js" "codex-linux-prompt-window-enabled"

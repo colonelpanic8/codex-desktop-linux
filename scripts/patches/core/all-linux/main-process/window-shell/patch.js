@@ -25,7 +25,6 @@ const {
   applyLinuxX11ProjectPickerPatch,
 } = require("../../../../impl/main-process/misc.js");
 const {
-  applyLinuxBuildInfoTrayPatch,
   applyLinuxTrayPatch,
   applyLinuxSingleInstancePatch,
 } = require("../../../../impl/main-process/tray.js");
@@ -168,13 +167,6 @@ module.exports = [
     order: 110,
     ciPolicy: "required-upstream",
     apply: (source, context) => applyLinuxTrayPatch(source, context.iconPathExpression),
-  }),
-  mainBundlePatch({
-    id: "linux-build-info-tray",
-    phase: "main-bundle",
-    order: 115,
-    ciPolicy: "optional",
-    apply: applyLinuxBuildInfoTrayPatch,
   }),
   mainBundlePatch({
     id: "linux-single-instance",

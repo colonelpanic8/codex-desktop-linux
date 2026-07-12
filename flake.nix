@@ -54,6 +54,9 @@
         };
         flakeSourceCommit = self.rev or (self.dirtyRev or "");
         flakeSourceDateEpoch = toString (self.lastModified or 1);
+        flakeSourceRepository = "https://github.com/ilysenko/codex-desktop-linux";
+        flakeSourceRemote = "${flakeSourceRepository}.git";
+        nixBuildInfoTestCommit = "0123456789abcdef0123456789abcdef01234567";
         sourceRoot = pkgs.lib.cleanSourceWith {
           src = ./.;
           filter = path: type:
@@ -519,6 +522,13 @@ PY
             ${pkgs.lib.optionalString (flakeSourceCommit != "") ''
             export CODEX_LINUX_SOURCE_COMMIT="${flakeSourceCommit}"
             ''}
+            ${pkgs.lib.optionalString (builtins.elem "build-info-ui" linuxFeatureIds) ''
+            # Nix flake sources do not contain .git. The opt-in build-info UI
+            # uses this immutable revision and canonical remote without a
+            # network lookup; an unavailable subject remains explicitly null.
+            export CODEX_LINUX_SOURCE_REMOTE="${flakeSourceRemote}"
+            export CODEX_LINUX_SOURCE_PROVENANCE="nix-flake"
+            ''}
             ${pkgs.lib.optionalString enableComputerUseUi ''
             export CODEX_LINUX_ENABLE_COMPUTER_USE_UI=1
             ''}
@@ -697,6 +707,7 @@ PY
         codexDesktopNixFeatureCheck = codexDesktop.override {
           linuxFeatureIds = [
             "appshots"
+            "build-info-ui"
             "frameless-titlebar"
             "global-dictation"
             "mcp-helper-reaper"
@@ -768,6 +779,31 @@ PY
             inherit pkgs self system;
           };
           nix-linux-features-multi-feature = codexDesktopNixFeatureCheck;
+          nix-build-info-ui-provenance = pkgs.runCommand "nix-build-info-ui-provenance" {
+            nativeBuildInputs = [ pkgs.bash pkgs.jq pkgs.nodejs ];
+          } ''
+            test ! -e ${sourceRoot}/.git
+            export INSTALL_DIR="$TMPDIR/codex-app"
+            export SCRIPT_DIR=${sourceRoot}
+            export CODEX_LINUX_SOURCE_COMMIT=${nixBuildInfoTestCommit}
+            export CODEX_LINUX_SOURCE_REMOTE=${flakeSourceRemote}
+            export CODEX_LINUX_SOURCE_PROVENANCE=nix-flake
+            ${pkgs.bash}/bin/bash ${sourceRoot}/linux-features/build-info-ui/stage.sh
+            info="$INSTALL_DIR/.codex-linux/features/build-info-ui/source-info.json"
+            test -f "$info"
+            jq -e \
+              --arg commit '${nixBuildInfoTestCommit}' \
+              --arg remote '${flakeSourceRemote}' \
+              --arg commitUrl '${flakeSourceRepository}/commit/${nixBuildInfoTestCommit}' \
+              '.commit == $commit
+                and .commitMessage == null
+                and .remote == $remote
+                and .commitUrl == $commitUrl
+                and .provenance == "nix-flake"' \
+              "$info" >/dev/null
+            mkdir -p "$out"
+            cp "$info" "$out/source-info.json"
+          '';
         };
 
         apps.default = {

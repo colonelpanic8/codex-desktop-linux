@@ -1,0 +1,17 @@
+{
+  "id": "build-info-ui",
+  "title": "Build Information UI",
+  "description": "Adds an opt-in build metadata dialog, source commit link, tray entry, and Linux settings panel.",
+  "defaultEnabled": false,
+  "entrypoints": {
+    "patchDescriptors": "./patch.js",
+    "stageHook": "./stage.sh",
+    "cleanupHook": "./cleanup.sh"
+  },
+  "packageHooks": [
+    {
+      "path": "package.sh",
+      "formats": ["deb", "rpm", "pacman"]
+    }
+  ]
+}

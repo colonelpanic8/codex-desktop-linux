@@ -640,67 +640,25 @@ function sanitizeSourceInfo(info) {
   const remote = sanitizeGitRemoteUrl(info.remote);
   return {
     ...info,
-    commitMessage: info.commitMessage
-      ?? process.env.CODEX_LINUX_SOURCE_COMMIT_MESSAGE?.trim()
-      ?? (info.commit == null ? null : git(["log", "-1", "--format=%s", info.commit])),
     version: info.version ?? readWrapperVersion(repoDir),
     remote,
-    commitUrl: githubCommitUrl(remote, info.commit),
     provenance: info.provenance ?? "packaged-update-builder",
     recapturedAt: isoTimestamp(),
   };
-}
-
-function githubCommitUrl(remote, commit) {
-  const sha = typeof commit === "string" ? commit.trim() : "";
-  if (!/^[0-9a-f]{7,40}$/i.test(sha)) {
-    return null;
-  }
-  const value = sanitizeGitRemoteUrl(remote);
-  if (value == null) {
-    return null;
-  }
-
-  let ownerAndRepo = null;
-  try {
-    const url = new URL(value);
-    if (url.hostname.toLowerCase() !== "github.com") {
-      return null;
-    }
-    ownerAndRepo = url.pathname.replace(/^\/+/, "");
-  } catch {
-    const scpMatch = value.match(/^(?:[^@]+@)?github\.com:([^/]+\/[^/]+?)(?:\.git)?$/i);
-    if (scpMatch) {
-      ownerAndRepo = scpMatch[1];
-    }
-  }
-
-  if (ownerAndRepo == null) {
-    return null;
-  }
-  ownerAndRepo = ownerAndRepo.replace(/\/+$/, "").replace(/\.git$/i, "");
-  if (!/^[^/\s]+\/[^/\s]+$/.test(ownerAndRepo)) {
-    return null;
-  }
-  return `https://github.com/${ownerAndRepo}/commit/${sha}`;
 }
 
 const stagedInfo = readJsonFile(path.join(repoDir, ".codex-linux", "source-info.json"));
 const commit = process.env.CODEX_LINUX_SOURCE_COMMIT?.trim() || git(["rev-parse", "HEAD"]);
 const status = git(["status", "--porcelain"]);
 const remote = sanitizeGitRemoteUrl(process.env.CODEX_LINUX_SOURCE_REMOTE?.trim() || git(["remote", "get-url", "origin"]));
-const commitMessage = process.env.CODEX_LINUX_SOURCE_COMMIT_MESSAGE?.trim()
-  || (commit == null ? null : git(["log", "-1", "--format=%s", commit]));
 const info = stagedInfo?.commit
   ? sanitizeSourceInfo(stagedInfo)
   : {
       commit,
       shortCommit: commit == null ? null : commit.slice(0, 12),
-      commitMessage,
       version: readWrapperVersion(repoDir),
       branch: process.env.CODEX_LINUX_SOURCE_BRANCH?.trim() || git(["branch", "--show-current"]),
       remote,
-      commitUrl: githubCommitUrl(remote, commit),
       describe: process.env.CODEX_LINUX_SOURCE_DESCRIBE?.trim() || git(["describe", "--always", "--dirty", "--tags"]),
       dirty: status == null ? null : status.length > 0,
       provenance: "packaged-update-builder",
