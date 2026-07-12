@@ -297,6 +297,34 @@ function findNativeKeyboardShortcutsSettingsAsset(webviewAssetsDir) {
     .sort()[0] ?? null;
 }
 
+function findSettingsRouteRuntimeAsset(webviewAssetsDir) {
+  // The lazy-route wrapper renders every settings page with this module's
+  // React instance. A different initialized chunk can still have a null hook
+  // dispatcher when React calls into it, so bridge the runtime from here.
+  const routeMatches = fs
+    .readdirSync(webviewAssetsDir)
+    .filter((name) => name.endsWith(".js"))
+    .sort()
+    .filter((name) => {
+      const source = fs.readFileSync(path.join(webviewAssetsDir, name), "utf8");
+      return isSettingsRouteBundleSource(source);
+    });
+  if (routeMatches.length === 0) {
+    throw new Error("Required Keybinds settings patch failed: could not find Linux desktop settings route bundle");
+  }
+  const matches = routeMatches.filter((name) => {
+    const source = fs.readFileSync(path.join(webviewAssetsDir, name), "utf8");
+    return inferRuntimeDependenciesFromSettingsSource(source) != null;
+  });
+
+  if (matches.length !== 1) {
+    throw new Error(
+      `Required Keybinds settings patch failed: could not infer the active React runtime from exactly one settings route asset (found ${matches.length})`,
+    );
+  }
+  return matches[0];
+}
+
 function tryFindRequiredWebviewAsset(webviewAssetsDir, namePattern, requiredContent, description) {
   try {
     return findRequiredWebviewAsset(webviewAssetsDir, namePattern, requiredContent, description);
@@ -343,20 +371,16 @@ function resolveSettingsAssetDependencies(extractedDir, { includeHotkeySettings 
     throw new Error(`Required Keybinds settings patch failed: missing webview assets directory ${webviewAssetsDir}`);
   }
 
-  let runtimeDependencies = null;
-  const nativeKeyboardShortcutsAsset = findNativeKeyboardShortcutsSettingsAsset(webviewAssetsDir);
-  let nativeKeyboardShortcutsSource = null;
-  if (nativeKeyboardShortcutsAsset != null) {
-    nativeKeyboardShortcutsSource = fs.readFileSync(
-      path.join(webviewAssetsDir, nativeKeyboardShortcutsAsset),
-      "utf8",
-    );
-    runtimeDependencies = inferRuntimeDependenciesFromSettingsSource(nativeKeyboardShortcutsSource);
-  }
+  const runtimeBridgeAsset = findSettingsRouteRuntimeAsset(webviewAssetsDir);
+  const runtimeBridgeSource = fs.readFileSync(
+    path.join(webviewAssetsDir, runtimeBridgeAsset),
+    "utf8",
+  );
+  const runtimeDependencies = inferRuntimeDependenciesFromSettingsSource(runtimeBridgeSource);
 
   if (runtimeDependencies == null) {
     throw new Error(
-      "Required Keybinds settings patch failed: could not infer the initialized React runtime from the current upstream Keyboard Shortcuts settings asset",
+      "Required Keybinds settings patch failed: could not infer the active React runtime from the current upstream settings route asset",
     );
   }
 
@@ -370,15 +394,14 @@ function resolveSettingsAssetDependencies(extractedDir, { includeHotkeySettings 
         "hotkey settings asset",
       )
     : null;
-  const runtimeBridgeAsset = nativeKeyboardShortcutsAsset;
   const fallbackComponents = linuxSettingsFallbackComponents({
     runtimeBridgeAsset,
   });
   const generatedAssets = [];
   generatedAssets.push({
-    filePath: path.join(webviewAssetsDir, nativeKeyboardShortcutsAsset),
+    filePath: path.join(webviewAssetsDir, runtimeBridgeAsset),
     source: addLinuxSettingsRuntimeBridgeExports(
-      nativeKeyboardShortcutsSource,
+      runtimeBridgeSource,
       runtimeDependencies,
     ),
   });
@@ -681,7 +704,20 @@ function patchKeybindsSettingsAssets(extractedDir) {
     const previousSettingsSource = settingsAssetExists
       ? fs.readFileSync(settingsAsset.filePath, "utf8")
       : null;
+    // Treat generated updates as patches so a route bundle can receive both
+    // the runtime exports and the Linux route insertion without one write
+    // overwriting the other.
+    const generatedPatches = (settingsAsset.generatedAssets ?? []).map((generatedAsset) => {
+      const exists = fs.existsSync(generatedAsset.filePath);
+      const currentSource = exists ? fs.readFileSync(generatedAsset.filePath, "utf8") : "";
+      return {
+        filePath: generatedAsset.filePath,
+        currentSource,
+        patchedSource: generatedAsset.source,
+      };
+    });
     const patches = [
+      ...generatedPatches,
       ...collectOptionalMatchingAssetPatches(
         extractedDir,
         isSettingsSectionsMetadataBundleSource,
@@ -700,15 +736,8 @@ function patchKeybindsSettingsAssets(extractedDir) {
       ...collectLinuxDesktopRouteAndNavigationPatches(extractedDir),
     ];
 
-    const generatedWrites = (settingsAsset.generatedAssets ?? []).filter((generatedAsset) =>
-      !fs.existsSync(generatedAsset.filePath) ||
-        fs.readFileSync(generatedAsset.filePath, "utf8") !== generatedAsset.source
-    );
-    for (const generatedAsset of generatedWrites) {
-      fs.writeFileSync(generatedAsset.filePath, generatedAsset.source, "utf8");
-    }
     fs.writeFileSync(settingsAsset.filePath, settingsAsset.source, "utf8");
-    let changed = generatedWrites.length + (previousSettingsSource !== settingsAsset.source ? 1 : 0);
+    let changed = previousSettingsSource !== settingsAsset.source ? 1 : 0;
     changed += applyCollectedAssetPatchWrites(patches);
     return {
       matched: true,

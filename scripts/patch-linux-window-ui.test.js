@@ -1423,12 +1423,17 @@ function runSettingsPersistence(patchedSource, env, key, value) {
 
 function keybindsIndexBundleFixture() {
   return [
+    'import{n as routeModule,s as routeToESM}from"./rolldown-runtime-A.js";',
+    'import{I as routeJsxFactory,R as routeReactFactory}from"./shared-runtime-A.js";',
+    "function SettingsRouteWrapper(){let t=(0,RouteReact.useState)(null);return (0,RouteJsx.jsx)(`div`,{children:t})}",
+    "var RouteReact,RouteJsx;routeModule(()=>{RouteReact=routeToESM(routeReactFactory(),1),RouteJsx=routeJsxFactory()})();",
     "var Kge={\"general-settings\":xh,appearance:Pf,\"git-settings\":t1};",
     "var i_e={\"general-settings\":Z(async()=>(await s(async()=>{let{GeneralSettings:e}=await import(`./general-settings-DsLl9t6Z.js`);return{GeneralSettings:e}},[],import.meta.url)).GeneralSettings),appearance:Z(async()=>(await s(async()=>{let{Appearance:e}=await import(`./appearance.js`);return{Appearance:e}},[],import.meta.url)).Appearance)};",
     "qge=[`general-settings`,`appearance`,`connections`,`git-settings`,`usage`];",
     "Jge=[{key:`app`,heading:H7.appHeading,slugs:[`general-settings`,`appearance`,`connections`,`git-settings`,`usage`]}];",
     "switch(e){case`appearance`:case`git-settings`:case`worktrees`:case`local-environments`:case`data-controls`:case`environments`:return l===`electron`;}",
     "switch(e){case`usage`:k=g;break bb0;case`appearance`:case`general-settings`:case`agent`:case`git-settings`:case`account`:case`data-controls`:case`personalization`:k=!1;break bb0;}",
+    "export{SettingsRouteWrapper};",
   ].join("");
 }
 
@@ -1452,11 +1457,16 @@ function settingsSharedBundleWithDriftingJsxAliasFixture() {
 
 function linuxDesktopRouteBundleFixture() {
   return [
+    'import{n as routeModule,s as routeToESM}from"./rolldown-runtime-A.js";',
+    'import{I as routeJsxFactory,R as routeReactFactory}from"./shared-runtime-A.js";',
+    "function SettingsRouteWrapper(){let t=(0,RouteReact.useState)(null);return (0,RouteJsx.jsx)(`div`,{children:t})}",
+    "var RouteReact,RouteJsx;routeModule(()=>{RouteReact=routeToESM(routeReactFactory(),1),RouteJsx=routeJsxFactory()})();",
     "var DE={",
     '"general-settings":$(async()=>(await Xr(async()=>{let{GeneralSettings:e}=await import(`./general-settings-A.js`);return{GeneralSettings:e}},[],import.meta.url)).GeneralSettings),',
     "profile:$(async()=>(await Xr(async()=>{let{Profile:e}=await import(`./profile-A.js`);return{Profile:e}},[],import.meta.url)).Profile),",
     '"keyboard-shortcuts":$(async()=>(await Xr(async()=>{let{KeyboardShortcutsSettings:e}=await import(`./keyboard-shortcuts-settings-A.js`);return{KeyboardShortcutsSettings:e}},[],import.meta.url)).KeyboardShortcutsSettings)',
     "};",
+    "export{SettingsRouteWrapper};",
   ].join("");
 }
 
@@ -1512,12 +1522,17 @@ function createModernNativeKeyboardShortcutsSettingsFixture() {
   writeAsset(
     "settings-page-A.js",
     [
+      'import{n as routeModule,s as routeToESM}from"./rolldown-runtime-A.js";',
+      'import{I as routeJsxFactory,R as routeReactFactory}from"./shared-runtime-A.js";',
+      "function SettingsRouteWrapper(){let t=(0,RouteReact.useState)(null);return (0,RouteJsx.jsx)(`div`,{children:t})}",
+      "var RouteReact,RouteJsx;routeModule(()=>{RouteReact=routeToESM(routeReactFactory(),1),RouteJsx=routeJsxFactory()})();",
       'var Zn={"general-settings":Ya(async()=>(await Pr(async()=>{let{GeneralSettings:e}=await import(`./general-settings-A.js`);return{GeneralSettings:e}},[],import.meta.url)).GeneralSettings),"keyboard-shortcuts":Ya(async()=>(await Pr(async()=>{let{KeyboardShortcutsSettings:e}=await import(`./keyboard-shortcuts-settings-A.js`);return{KeyboardShortcutsSettings:e}},[],import.meta.url)).KeyboardShortcutsSettings)};',
       'var Hn={"general-settings":wt,"keyboard-shortcuts":xn};',
       "var Wn=[`general-settings`,`profile`,`keyboard-shortcuts`];",
       "var Qn=[{key:`app`,slugs:[`general-settings`,`profile`,`keyboard-shortcuts`]}];",
       "function visible(e){switch(e.slug){case`general-settings`:case`agent`:case`personalization`:return!0;case`keyboard-shortcuts`:return!0}}",
       "function loading(H){let W=!1;if(H)bb0:switch(H.slug){case`appearance`:case`general-settings`:case`agent`:case`git-settings`:case`data-controls`:case`personalization`:W=!1;break bb0;case`keyboard-shortcuts`:W=!1;break bb0}return W}",
+      "export{SettingsRouteWrapper};",
     ].join(""),
   );
   writeAsset(
@@ -1628,10 +1643,15 @@ function createSplitRouteNativeKeyboardShortcutsSettingsFixture({
   writeAsset(
     routeChunkName,
     [
+      'import{n as routeModule,s as routeToESM}from"./rolldown-runtime-A.js";',
+      'import{I as routeJsxFactory,R as routeReactFactory}from"./shared-runtime-A.js";',
+      "function SettingsRouteWrapper(){let t=(0,RouteReact.useState)(null);return (0,RouteJsx.jsx)(`div`,{children:t})}",
+      "var RouteReact,RouteJsx;routeModule(()=>{RouteReact=routeToESM(routeReactFactory(),1),RouteJsx=routeJsxFactory()})();",
       "var Bn,Ya,Pr,FW,Xn=e((()=>{Bn=s(),Ya=t(f(),1),Pr=o(),",
       'FW={"general-settings":Ya(async()=>(await Pr(async()=>{let{GeneralSettings:e}=await import(`./general-settings-A.js`);return{GeneralSettings:e}},[],import.meta.url)).GeneralSettings),',
       '"keyboard-shortcuts":Ya(async()=>(await Pr(async()=>{let{KeyboardShortcutsSettings:e}=await import(`./keyboard-shortcuts-settings-A.js`);return{KeyboardShortcutsSettings:e}},[],import.meta.url)).KeyboardShortcutsSettings)}',
       "}));",
+      "export{SettingsRouteWrapper};",
     ].join(""),
   );
   writeAsset(
@@ -5004,24 +5024,15 @@ test("renders the generated Linux desktop settings page with working switches", 
       jsxs: (type, props = {}) => ({ type, props }),
     };
     const React = { Component, Fragment: "fragment" };
-    const nativeSettingsSource = fs.readFileSync(
-      path.join(assetsDir, "keyboard-shortcuts-settings-A.js"),
+    const routeSettingsSource = fs.readFileSync(
+      path.join(assetsDir, "settings-page-A.js"),
       "utf8",
     );
     assert.match(
-      nativeSettingsSource,
-      /React as codexLinuxReact,\$ as codexLinuxJsx/,
+      routeSettingsSource,
+      /RouteReact as codexLinuxReact,RouteJsx as codexLinuxJsx/,
     );
-    const nativeRuntime = evaluateGeneratedSettingsModule(
-      nativeSettingsSource,
-      {
-        __jsxFactory: () => jsxRuntime,
-        __module: (initialize) => initialize,
-        __reactFactory: () => React,
-        __toESM: (value) => value,
-      },
-      "({React,$})",
-    );
+    const nativeRuntime = { React, $: jsxRuntime };
     assert.equal(nativeRuntime.React, React);
     assert.equal(nativeRuntime.$, jsxRuntime);
     const Toggle = evaluateGeneratedSettingsModule(
@@ -5107,13 +5118,13 @@ test("skips old Keybinds settings generation when native Keyboard Shortcuts are 
   }
 });
 
-test("skips Linux settings without writing assets when the initialized native runtime cannot be inferred", () => {
+test("skips Linux settings without writing assets when the active route runtime cannot be inferred", () => {
   const { extractedDir, assetsDir } = createModernNativeKeyboardShortcutsSettingsFixture();
   try {
-    const nativeSettingsPath = path.join(assetsDir, "keyboard-shortcuts-settings-A.js");
+    const nativeSettingsPath = path.join(assetsDir, "settings-page-A.js");
     const nativeSettingsSource = fs.readFileSync(nativeSettingsPath, "utf8").replace(
-      "(0,React.useState)(null)",
-      "React.useState(null)",
+      "(0,RouteReact.useState)(null)",
+      "RouteReact.useState(null)",
     );
     fs.writeFileSync(nativeSettingsPath, nativeSettingsSource, "utf8");
     const assetsBefore = new Map(
@@ -5127,8 +5138,8 @@ test("skips Linux settings without writing assets when the initialized native ru
 
     assert.equal(result.matched, false);
     assert.equal(result.changed, 0);
-    assert.match(result.reason, /could not infer the initialized React runtime/);
-    assert.ok(warnings.some((warning) => warning.includes("could not infer the initialized React runtime")));
+    assert.match(result.reason, /could not infer the active React runtime/);
+    assert.ok(warnings.some((warning) => warning.includes("could not infer the active React runtime")));
     assert.deepEqual(
       new Map(
         fs.readdirSync(assetsDir).map((name) => [
@@ -5146,7 +5157,7 @@ test("skips Linux settings without writing assets when the initialized native ru
     const reportEntry = report.patches.find((patch) => patch.name === "keybinds-settings");
     assert.equal(reportEntry.status, "skipped-optional");
     assert.equal(reportEntry.ciPolicy, "optional");
-    assert.match(reportEntry.reason, /could not infer the initialized React runtime/);
+    assert.match(reportEntry.reason, /could not infer the active React runtime/);
     assert.ok(
       optionalDriftFromReport(report).some((drift) => drift.name === "keybinds-settings"),
     );
@@ -5352,16 +5363,16 @@ test("adds Linux desktop settings when native shortcuts use a consolidated setti
     assert.doesNotMatch(linuxDesktopSource, /Source commit URL/);
     assert.match(
       linuxDesktopSource,
-      /import\{codexLinuxReact as React,codexLinuxJsx as \$\}from"\.\/keyboard-shortcuts-settings-A\.js"/,
+      /import\{codexLinuxReact as React,codexLinuxJsx as \$\}from"\.\/settings-page-A\.js"/,
     );
     assert.doesNotMatch(linuxDesktopSource, /__reactFactory|__jsxFactory/);
-    const keyboardShortcutsSource = fs.readFileSync(
-      path.join(assetsDir, "keyboard-shortcuts-settings-A.js"),
+    const settingsRouteSource = fs.readFileSync(
+      path.join(assetsDir, "settings-page-A.js"),
       "utf8",
     );
     assert.match(
-      keyboardShortcutsSource,
-      /React as codexLinuxReact,\$ as codexLinuxJsx/,
+      settingsRouteSource,
+      /RouteReact as codexLinuxReact,RouteJsx as codexLinuxJsx/,
     );
     assert.match(
       linuxDesktopSource,
