@@ -4914,7 +4914,7 @@ test("renders the generated Linux desktop settings page with working switches", 
     const React = { Component, Fragment: "fragment" };
     const Toggle = evaluateGeneratedSettingsModule(
       fs.readFileSync(path.join(assetsDir, "linux-settings-toggle-linux.js"), "utf8"),
-      { __jsxFactory: () => jsxRuntime },
+      { $: jsxRuntime, __jsxFactory: () => jsxRuntime },
       "t",
     );
     const SettingsPage = ({ title, subtitle, children }) =>
@@ -4928,6 +4928,7 @@ test("renders the generated Linux desktop settings page with working switches", 
     const LinuxDesktopSettings = evaluateGeneratedSettingsModule(
       fs.readFileSync(path.join(assetsDir, linuxDesktopSettingsAsset), "utf8"),
       {
+        $: jsxRuntime,
         React,
         SettingsGroup,
         SettingsPage,
@@ -5192,7 +5193,19 @@ test("adds Linux desktop settings when native shortcuts use a consolidated setti
     assert.match(linuxDesktopSource, /Open on GitHub/);
     assert.match(linuxDesktopSource, /href:url/);
     assert.doesNotMatch(linuxDesktopSource, /Source commit URL/);
-    assert.match(linuxDesktopSource, /import\{R as __reactFactory,I as __jsxFactory\}from"\.\/shared-runtime-A\.js"/);
+    assert.match(
+      linuxDesktopSource,
+      /import\{codexLinuxReact as React,codexLinuxJsx as \$\}from"\.\/keyboard-shortcuts-settings-A\.js"/,
+    );
+    assert.doesNotMatch(linuxDesktopSource, /__reactFactory|__jsxFactory/);
+    const keyboardShortcutsSource = fs.readFileSync(
+      path.join(assetsDir, "keyboard-shortcuts-settings-A.js"),
+      "utf8",
+    );
+    assert.match(
+      keyboardShortcutsSource,
+      /React as codexLinuxReact,\$ as codexLinuxJsx/,
+    );
     assert.match(
       linuxDesktopSource,
       /import\{t as Toggle\}from"\.\/linux-settings-toggle-linux\.js"/,
