@@ -279,14 +279,14 @@ function addLinuxSettingsRuntimeBridgeExports(source, runtimeDependencies) {
   }
 
   const exportPattern = /export\{([^}]*)\}/;
-  if (!exportPattern.test(source)) {
-    throw new Error("Required Keybinds settings patch failed: could not export the initialized React runtime");
-  }
-
   const bridgeExports = [
     `${runtimeDependencies.reactRuntimeLocalName} as ${linuxReactRuntimeExport}`,
     `${runtimeDependencies.jsxRuntimeLocalName} as ${linuxJsxRuntimeExport}`,
   ].join(",");
+  if (!exportPattern.test(source)) {
+    return `${source}export{${bridgeExports}};`;
+  }
+
   return source.replace(exportPattern, (_match, exports) => `export{${exports},${bridgeExports}}`);
 }
 
