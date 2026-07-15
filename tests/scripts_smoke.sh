@@ -6508,9 +6508,9 @@ PY
     mkdir -p "$resolve_bin"
     printf '#!/usr/bin/env bash\nprintf "codex-cli 0.170.0\\n"\n' > "$resolve_bin/codex"
     chmod 0775 "$resolve_bin" "$resolve_bin/codex"
-    if env -i PATH="$resolve_bin:$HOST_TOOL_PATH" HOME="$fake_home" "$launcher_probe" resolve codex >/dev/null 2>&1; then
-        fail "CLI trust helper must reject group-writable PATH executables"
-    fi
+    resolved_cli="$(env -i PATH="$resolve_bin:$HOST_TOOL_PATH" HOME="$fake_home" "$launcher_probe" resolve codex)"
+    [ "$resolved_cli" = "$(realpath "$resolve_bin/codex")" ] || \
+        fail "CLI resolver must accept an executable created under umask 0002"
 
     local external_cli="$workspace/external-codex"
     local visible_cli="$workspace/visible-codex"
@@ -6673,12 +6673,12 @@ PY
         ROUTING_CLI_PATH="$workspace/missing-routing-codex" \
         UPDATE_MANAGER_AVAILABLE=0 TRUST_RESULT=failure BROKEN_CLI=1 \
         "$routing_probe"; then
-        fail "standalone trust failure must abort launcher startup"
+        fail "invalid CLI path must abort launcher startup"
     fi
-    grep -q '^notify=The selected Codex CLI failed its execution-free trust check' "$routing_log" || \
-        fail "standalone trust failure must show safe recovery guidance"
+    grep -q '^notify=The selected Codex CLI path does not resolve to an executable file' "$routing_log" || \
+        fail "invalid CLI path must show actionable recovery guidance"
     if grep -qE '^(probe=|background=|version=|electron=)' "$routing_log"; then
-        fail "standalone trust failure must block every CLI probe, final version log, and Electron startup"
+        fail "invalid CLI path must block every CLI probe, final version log, and Electron startup"
     fi
 
     : > "$routing_log"
@@ -6686,10 +6686,10 @@ PY
         ROUTING_CLI_PATH="$workspace/missing-routing-codex" \
         COLD_START=0 UPDATE_MANAGER_AVAILABLE=0 TRUST_RESULT=failure \
         "$routing_probe"; then
-        fail "standalone trust failure must also abort second-instance handoff"
+        fail "invalid CLI path must also abort second-instance handoff"
     fi
     if grep -qE '^(probe=|background=|version=|electron=)' "$routing_log"; then
-        fail "second-instance trust failure must not reach any CLI probe or Electron startup"
+        fail "second-instance invalid CLI path must not reach any CLI probe or Electron startup"
     fi
 
     : > "$routing_log"
@@ -6782,6 +6782,10 @@ SCRIPT
     stable_path="$(HOME="$trust_workspace/home" python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli")"
     [ "$stable_path" = "$(realpath "$release/bin/codex")" ] || \
         fail "launcher trust helper must return the canonical standalone release target"
+    printf '%s\n' '/tmp/removed-standalone-home/.codex' > "$trust_workspace/home/.codex-standalone-provenance"
+    stable_path="$(HOME="$trust_workspace/home" python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli")"
+    [ "$stable_path" = "$(realpath "$release/bin/codex")" ] || \
+        fail "launcher CLI resolution must ignore stale standalone provenance"
 
     local replacement_marker="$trust_workspace/replacement-executed"
     local replacement_cli="$trust_workspace/replacement-codex"
@@ -6796,40 +6800,21 @@ SCRIPT
 
     chmod 0775 "$(dirname "$visible_cli")"
     mv "$codex_home/packages/standalone" "$codex_home/packages/standalone-rejected"
-    if HOME="$trust_workspace/home" CODEX_HOME="$codex_home" \
-        python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli" >/dev/null 2>&1; then
-        fail "launcher trust helper must reject an unsafe visible replacement before classification"
-    fi
+    stable_path="$(HOME="$trust_workspace/home" CODEX_HOME="$codex_home" \
+        python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli")"
+    [ "$stable_path" = "$(realpath "$replacement_cli")" ] || \
+        fail "launcher CLI resolution must follow the currently selected executable"
     [ ! -e "$replacement_marker" ] || \
-        fail "launcher trust helper must not execute an unsafe pre-validation replacement"
+        fail "launcher CLI resolution must remain execution-free"
     mv "$codex_home/packages/standalone-rejected" "$codex_home/packages/standalone"
-
-    python3 - "$REPO_DIR/launcher/cli-launch-path.py" <<'PY'
-import importlib.util
-import os
-import pathlib
-import sys
-
-path = pathlib.Path(sys.argv[1])
-spec = importlib.util.spec_from_file_location("cli_launch_path", path)
-assert spec is not None
-module = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-spec.loader.exec_module(module)
-euid = os.geteuid()
-untrusted_uid = 2 if euid == 1 else 1
-assert module.trusted_owner(euid)
-assert module.trusted_owner(0)
-assert not module.trusted_owner(untrusted_uid)
-PY
 
     rm "$visible_cli"
     ln -s "$codex_home/packages/standalone/current/bin/codex" "$visible_cli"
     chmod 0755 "$(dirname "$visible_cli")"
     chmod 0775 "$release/bin/codex"
-    if HOME="$trust_workspace/home" python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli" >/dev/null 2>&1; then
-        fail "launcher trust helper must reject a group-writable standalone binary"
-    fi
+    stable_path="$(HOME="$trust_workspace/home" python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli")"
+    [ "$stable_path" = "$(realpath "$release/bin/codex")" ] || \
+        fail "launcher CLI resolution must accept existing umask-0002 standalone installs"
     chmod 0755 "$release/bin/codex"
 
     local external_root="$trust_workspace/external"
@@ -6837,9 +6822,9 @@ PY
     cp "$release/bin/codex" "$external_root/bin/codex"
     rm "$codex_home/packages/standalone/current"
     ln -s "$external_root" "$codex_home/packages/standalone/current"
-    if python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli" >/dev/null 2>&1; then
-        fail "launcher trust helper must reject an external standalone current symlink"
-    fi
+    stable_path="$(HOME="$trust_workspace/home" python3 "$REPO_DIR/launcher/cli-launch-path.py" "$visible_cli")"
+    [ "$stable_path" = "$(realpath "$external_root/bin/codex")" ] || \
+        fail "launcher CLI resolution must follow external package-manager symlink targets"
 }
 
 test_webview_server_cache_policy() {

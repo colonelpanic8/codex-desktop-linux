@@ -4193,7 +4193,7 @@ fi
 
 if [ -n "$CODEX_CLI_PATH" ]; then
     if ! verify_cli_launch_path; then
-        notify_error "The selected Codex CLI failed its execution-free trust check and will not be executed. If it is a rejected managed standalone install, stop active Codex installers and remove its standalone tree. Updater-enabled native packages can then run: codex-update-manager recover-standalone-cli --print-path. With AppImage, Nix, or updaterless packages, reinstall from a verified package channel into a fresh path owned by you or root with no group/world-writable file or parent directory; do not reuse the rejected tree. To switch away from standalone intentionally, also remove ~/.codex-standalone-provenance."
+        notify_error "The selected Codex CLI path does not resolve to an executable file. Reinstall the CLI or set CODEX_CLI_PATH to a working executable."
         exit 1
     fi
     log_phase "cli_launch_path_verified"
