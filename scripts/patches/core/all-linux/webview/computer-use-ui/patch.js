@@ -4,6 +4,7 @@ const {
   webviewAssetPatch,
 } = require("../../../../descriptor.js");
 const {
+  applyLinuxComputerUseHostPlatformPatch,
   applyLinuxComputerUseRendererAvailabilityPatch,
   applyLinuxComputerUseInstallFlowPatch,
 } = require("../../../../impl/computer-use.js");
@@ -19,6 +20,17 @@ module.exports = [
     missingDescription: "Computer Use availability bundle",
     skipDescription: "Linux Computer Use UI availability patch",
     apply: applyLinuxComputerUseRendererAvailabilityPatch,
+  }),
+  webviewAssetPatch({
+    id: "linux-computer-use-host-platform",
+    phase: "webview-asset",
+    order: 1105,
+    ciPolicy: "opt-in",
+    enabled: (context) => context.enableComputerUseUi,
+    pattern: /^app-initial~app-main~new-thread-panel-page~onboarding-page~appgen-library-page~hotkey-windo~nrw3o0ql-[^.]+\.js$/,
+    missingDescription: "current Computer Use host-platform bundle",
+    skipDescription: "Linux Computer Use host-platform patch",
+    apply: applyLinuxComputerUseHostPlatformPatch,
   }),
   webviewAssetPatch({
     id: "linux-computer-use-install-flow",

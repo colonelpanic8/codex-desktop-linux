@@ -435,6 +435,51 @@ function applyLinuxComputerUseRendererAvailabilityPatch(currentSource) {
   return currentSource;
 }
 
+function applyLinuxComputerUseHostPlatformPatch(currentSource) {
+  const currentRequiredFeaturesObjectPattern =
+    /([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\{areRequiredFeaturesEnabled:([A-Za-z_$][\w$]*),enabled:([A-Za-z_$][\w$]*),isAnyFeatureLoading:([A-Za-z_$][\w$]*),isComputerUseGateEnabled:([A-Za-z_$][\w$]*),isHostCompatiblePlatform:([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\),isPlatformLoading:([A-Za-z_$][\w$]*),windowType:`electron`\}\)/g;
+
+  let changed = false;
+  const patchedSource = currentSource.replace(
+    currentRequiredFeaturesObjectPattern,
+    (
+      match,
+      resultVar,
+      helperVar,
+      requiredFeaturesVar,
+      enabledVar,
+      featureLoadingVar,
+      rolloutVar,
+      platformPredicateVar,
+      platformVar,
+      platformLoadingVar,
+      offset,
+    ) => {
+      const context = currentSource.slice(Math.max(0, offset - 1200), offset + match.length);
+      if (!context.includes("featureName:`computer_use`")) {
+        return match;
+      }
+      changed = true;
+      return `${resultVar}=${helperVar}({areRequiredFeaturesEnabled:${requiredFeaturesVar},enabled:${enabledVar},isAnyFeatureLoading:${featureLoadingVar},isComputerUseGateEnabled:${rolloutVar},isHostCompatiblePlatform:${platformVar}===\`linux\`||${platformPredicateVar}(${platformVar}),isPlatformLoading:${platformLoadingVar},windowType:\`electron\`})`;
+    },
+  );
+
+  if (changed) {
+    return patchedSource;
+  }
+
+  if (
+    /featureName:`computer_use`[\s\S]{0,2200}?areRequiredFeaturesEnabled:[A-Za-z_$][\w$]*,enabled:[A-Za-z_$][\w$]*,isAnyFeatureLoading:[A-Za-z_$][\w$]*,isComputerUseGateEnabled:[A-Za-z_$][\w$]*,isHostCompatiblePlatform:([A-Za-z_$][\w$]*)===`linux`\|\|[A-Za-z_$][\w$]*\(\1\),isPlatformLoading:/.test(currentSource)
+  ) {
+    return currentSource;
+  }
+
+  console.warn(
+    "WARN: Could not find current Computer Use host-platform gate — skipping Linux Computer Use host-platform patch",
+  );
+  return currentSource;
+}
+
 function applyLinuxComputerUseInstallFlowPatch(currentSource) {
   if (currentSource.includes("plugin detail query requires pluginName")) {
     const markerPattern =
@@ -655,6 +700,7 @@ module.exports = {
   COMPUTER_USE_UI_ENV_VAR,
   COMPUTER_USE_UI_SETTINGS_KEY,
   applyLinuxComputerUseFeaturePatch,
+  applyLinuxComputerUseHostPlatformPatch,
   applyLinuxComputerUseInstallFlowPatch,
   applyLinuxNativeDesktopAppsHandlerPatch,
   applyLinuxComputerUsePluginGatePatch,

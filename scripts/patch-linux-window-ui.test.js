@@ -31,6 +31,7 @@ const {
   COMPUTER_USE_UI_ENV_VAR,
   COMPUTER_USE_UI_SETTINGS_KEY,
   applyLinuxComputerUseFeaturePatch,
+  applyLinuxComputerUseHostPlatformPatch,
   applyLinuxComputerUseInstallFlowPatch,
   applyLinuxNativeDesktopAppsHandlerPatch,
   applyLinuxComputerUsePluginGatePatch,
@@ -983,6 +984,7 @@ test("default core patch descriptors are grouped and unique", () => {
     "subagent-nickname-metadata-shape",
     "local-environment-action-modal-draft",
     "linux-computer-use-ui-availability",
+    "linux-computer-use-host-platform",
     "linux-computer-use-install-flow",
     "linux-app-updater-bridge",
     "browser-annotation-screenshot",
@@ -1041,6 +1043,16 @@ test("default core patch descriptors are grouped and unique", () => {
     true,
   );
   assert.equal(computerUseInstallFlow.pattern.test("app-initial~app-main-current.js"), false);
+  const computerUseHostPlatform = descriptors.find(
+    (descriptor) => descriptor.id === "linux-computer-use-host-platform",
+  );
+  assert.equal(
+    computerUseHostPlatform.pattern.test(
+      "app-initial~app-main~new-thread-panel-page~onboarding-page~appgen-library-page~hotkey-windo~nrw3o0ql-current.js",
+    ),
+    true,
+  );
+  assert.equal(computerUseHostPlatform.pattern.test("app-initial~app-main-current.js"), false);
   assert.equal(
     descriptors.find((descriptor) => descriptor.id === "linux-terminal-user-path")?.ciPolicy,
     "optional",
@@ -8393,6 +8405,35 @@ test("does not report partial current Computer Use settings patches as applied",
   ]);
 });
 
+test("allows the current Computer Use host platform on Linux", () => {
+  const source =
+    "function Rj(e){return e===`macOS`||e===`windows`}" +
+    "function zj(e){let t=(0,Uj.c)(16),{enabled:n,hostId:r}=e,i=n===void 0?!0:n,{isLoading:a,platform:o}=Xt(),s=cn(`1506311413`),c;t[0]===r?c=t[1]:(c={featureName:`computer_use`,hostId:r},t[0]=r,t[1]=c);let l=Fj(c),u=o===`windows`&&!a,d=i&&u,f;t[2]===d?f=t[3]:(f={enabled:d},t[2]=d,t[3]=f);let p=Bj(f),m=l.isLoading||u&&p.isLoading,h=l.enabled&&(!u||p.enabled),g;t[4]!==h||t[5]!==i||t[6]!==m||t[7]!==s||t[8]!==a||t[9]!==o?(g=Hj({areRequiredFeaturesEnabled:h,enabled:i,isAnyFeatureLoading:m,isComputerUseGateEnabled:s,isHostCompatiblePlatform:Rj(o),isPlatformLoading:a,windowType:`electron`}),t[4]=h,t[5]=i,t[6]=m,t[7]=s,t[8]=a,t[9]=o,t[10]=g):g=t[10];return g}";
+
+  const patched = applyPatchTwice(applyLinuxComputerUseHostPlatformPatch, source);
+
+  assert.match(
+    patched,
+    /g=Hj\(\{areRequiredFeaturesEnabled:h,enabled:i,isAnyFeatureLoading:m,isComputerUseGateEnabled:s,isHostCompatiblePlatform:o===`linux`\|\|Rj\(o\),isPlatformLoading:a,windowType:`electron`\}\)/,
+  );
+  assert.doesNotMatch(patched, /areRequiredFeaturesEnabled:o===`linux`|isComputerUseGateEnabled:o===`linux`/);
+});
+
+test("rejects current Computer Use host-platform drift byte-identically", () => {
+  const source =
+    "const feature={featureName:`computer_use`};" +
+    "result=helper({areRequiredFeaturesEnabled:a,enabled:b,isAnyFeatureLoading:c,isComputerUseGateEnabled:d,isHostCompatiblePlatform:drifted(platform,other),isPlatformLoading:e,windowType:`electron`})";
+
+  const { value: patched, warnings } = captureWarns(() =>
+    applyLinuxComputerUseHostPlatformPatch(source),
+  );
+
+  assert.equal(patched, source);
+  assert.deepEqual(warnings, [
+    "WARN: Could not find current Computer Use host-platform gate — skipping Linux Computer Use host-platform patch",
+  ]);
+});
+
 test("loads current Computer Use plugin details on Linux despite the upstream availability gate", () => {
   const source =
     "function usePluginDetail(e){let{hostId:n,marketplacePath:r,pluginName:i,remoteMarketplaceName:a,enabled:o}=e," +
@@ -9295,6 +9336,14 @@ test("patchExtractedApp scans current Computer Use settings bundles when UI is e
           "let query=()=>{if(i==null)throw Error(`plugin detail query requires pluginName`);return read(`read-plugin`,{hostId:c,pluginName:i})};" +
           "return useQuery({queryFn:query,enabled:v})}",
       );
+      fs.writeFileSync(
+        path.join(
+          assetsDir,
+          "app-initial~app-main~new-thread-panel-page~onboarding-page~appgen-library-page~hotkey-windo~nrw3o0ql-current.js",
+        ),
+        "function _p(e){return e===`macOS`||e===`windows`}" +
+          "function vp(e){let t=(0,Sp.c)(16),{enabled:n,hostId:r}=e,i=n===void 0?!0:n,{isLoading:a,platform:o}=ba(),s=gr(`1506311413`),c;t[0]===r?c=t[1]:(c={featureName:`computer_use`,hostId:r},t[0]=r,t[1]=c);let l=mp(c),u=o===`windows`&&!a,d=i&&u,f;t[2]===d?f=t[3]:(f={enabled:d},t[2]=d,t[3]=f);let p=yp(f),m=l.isLoading||u&&p.isLoading,h=l.enabled&&(!u||p.enabled),g;t[4]!==h||t[5]!==i||t[6]!==m||t[7]!==s||t[8]!==a||t[9]!==o?(g=xp({areRequiredFeaturesEnabled:h,enabled:i,isAnyFeatureLoading:m,isComputerUseGateEnabled:s,isHostCompatiblePlatform:_p(o),isPlatformLoading:a,windowType:`electron`}),t[4]=h,t[5]=i,t[6]=m,t[7]=s,t[8]=a,t[9]=o,t[10]=g):g=t[10];return g}",
+      );
       fs.writeFileSync(path.join(tempRoot, "package.json"), JSON.stringify({ name: "codex" }));
 
       const firstReport = createPatchReport();
@@ -9305,8 +9354,13 @@ test("patchExtractedApp scans current Computer Use settings bundles when UI is e
         assetsDir,
         "app-initial~artifact-tab-content.electron~app-main~pull-request-route~pull-request-code-rev~jgoqfqy2-current.js",
       );
+      const hostPlatformPath = path.join(
+        assetsDir,
+        "app-initial~app-main~new-thread-panel-page~onboarding-page~appgen-library-page~hotkey-windo~nrw3o0ql-current.js",
+      );
       const patchedSettings = fs.readFileSync(settingsPath, "utf8");
       const patchedDetail = fs.readFileSync(detailPath, "utf8");
+      const patchedHostPlatform = fs.readFileSync(hostPlatformPath, "utf8");
 
       assert.match(
         patchedSettings,
@@ -9316,6 +9370,14 @@ test("patchExtractedApp scans current Computer Use settings bundles when UI is e
       assert.match(patchedDetail, /let p=f&&i!==`computer-use`,m;/);
       assert.equal(
         firstReport.patches.find((patch) => patch.name === "linux-computer-use-ui-availability")?.status,
+        "applied",
+      );
+      assert.match(
+        patchedHostPlatform,
+        /g=xp\(\{areRequiredFeaturesEnabled:h,enabled:i,isAnyFeatureLoading:m,isComputerUseGateEnabled:s,isHostCompatiblePlatform:o===`linux`\|\|_p\(o\),isPlatformLoading:a,windowType:`electron`\}\)/,
+      );
+      assert.equal(
+        firstReport.patches.find((patch) => patch.name === "linux-computer-use-host-platform")?.status,
         "applied",
       );
       assert.equal(
@@ -9328,8 +9390,13 @@ test("patchExtractedApp scans current Computer Use settings bundles when UI is e
 
       assert.equal(fs.readFileSync(settingsPath, "utf8"), patchedSettings);
       assert.equal(fs.readFileSync(detailPath, "utf8"), patchedDetail);
+      assert.equal(fs.readFileSync(hostPlatformPath, "utf8"), patchedHostPlatform);
       assert.equal(
         secondReport.patches.find((patch) => patch.name === "linux-computer-use-ui-availability")?.status,
+        "already-applied",
+      );
+      assert.equal(
+        secondReport.patches.find((patch) => patch.name === "linux-computer-use-host-platform")?.status,
         "already-applied",
       );
       assert.equal(
