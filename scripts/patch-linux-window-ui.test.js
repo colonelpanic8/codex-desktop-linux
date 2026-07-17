@@ -178,6 +178,7 @@ const {
   applyLinuxOpaqueWindowsDefaultPatch,
   applyLinuxSafeMonospaceFontStackPatch,
   applyLinuxSettingsSearchVisibilityPatch,
+  applyLinuxSidebarScrollFadePerformancePatch,
   applyLinuxSkillsListDedupePatch,
   applyLinuxThreadSidePanelNativeTooltipPatch,
   applyLinuxTooltipWindowControlsCollisionPatch,
@@ -978,6 +979,7 @@ test("default core patch descriptors are grouped and unique", () => {
     "linux-window-controls-safe-area",
     "linux-tooltip-window-controls-collision",
     "linux-thread-side-panel-native-tooltip",
+    "linux-sidebar-scroll-fade-performance-mitigation",
     "linux-fast-mode-model-guard",
     "linux-safe-monospace-font-stack",
     "subagent-nickname-metadata-shape",
@@ -1124,6 +1126,9 @@ test("optional webview descriptors follow the current upstream chunk split", () 
   const tooltipCollision = descriptors.find(
     (descriptor) => descriptor.id === "linux-tooltip-window-controls-collision",
   );
+  const sidebarScrollFade = descriptors.find(
+    (descriptor) => descriptor.id === "linux-sidebar-scroll-fade-performance-mitigation",
+  );
 
   assert.ok(automationUpdate);
   assert.equal(
@@ -1146,6 +1151,14 @@ test("optional webview descriptors follow the current upstream chunk split", () 
   assert.equal(
     tooltipCollision.pattern.test(
       "app-initial~app-main~onboarding-page~hotkey-window-thread-page~quick-chat-window-page~chatg~legacy.js",
+    ),
+    false,
+  );
+  assert.ok(sidebarScrollFade);
+  assert.equal(sidebarScrollFade.pattern.test("app-DdRwcpIN.css"), true);
+  assert.equal(
+    sidebarScrollFade.pattern.test(
+      "app-initial~app-main~projects-index-page-C6cWVbB-.css",
     ),
     false,
   );
@@ -2855,6 +2868,41 @@ test("removes native title tooltip from the thread side panel toolbar action", (
   assert.match(patched, /"aria-label":i/);
   assert.match(patched, /tooltipContent:i/);
   assert.doesNotMatch(patched, /title:i/);
+});
+
+test("replaces the current sidebar scroll-linked fade with a static temporary fade", () => {
+  const source = [
+    "@property --top-fade{syntax:`<length>`;inherits:false;initial-value:0}",
+    "@property --bottom-fade{syntax:`<length>`;inherits:false;initial-value:0}",
+    "@keyframes edge-fade{0%{--top-fade:0;--bottom-fade:var(--edge-fade-distance,1rem)}to{--top-fade:var(--edge-fade-distance,1rem);--bottom-fade:0}}",
+    ".vertical-scroll-fade-mask{-webkit-mask:linear-gradient(to bottom,transparent,#000 var(--top-fade) calc(100% - var(--bottom-fade)),transparent);mask:linear-gradient(to bottom,transparent,#000 var(--top-fade) calc(100% - var(--bottom-fade)),transparent);animation-name:edge-fade;animation-timing-function:linear;animation-fill-mode:both;animation-timeline:scroll(self y)}",
+  ].join("");
+
+  const { value: patched, warnings } = captureWarns(() =>
+    applyPatchTwice(applyLinuxSidebarScrollFadePerformancePatch, source),
+  );
+
+  assert.deepEqual(warnings, []);
+  assert.match(
+    patched,
+    /codex-linux-issue-1048-temporary-scroll-fade-mitigation/,
+  );
+  assert.match(
+    patched,
+    /\.vertical-scroll-fade-mask\{--top-fade:var\(--edge-fade-distance,1rem\);--bottom-fade:var\(--edge-fade-distance,1rem\);animation:none!important;animation-timeline:auto!important\}$/,
+  );
+});
+
+test("reports drift when the temporary sidebar scroll fade mitigation no longer matches", () => {
+  const source = ".vertical-scroll-fade-mask{overflow:auto}";
+  const { value: patched, warnings } = captureWarns(() =>
+    applyLinuxSidebarScrollFadePerformancePatch(source),
+  );
+
+  assert.equal(patched, source);
+  assert.deepEqual(warnings, [
+    "WARN: Could not find sidebar scroll fade animation — skipping temporary Linux scroll performance mitigation",
+  ]);
 });
 
 test("removes the Linux menu next to Windows removeMenu calls", () => {

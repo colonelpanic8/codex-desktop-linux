@@ -16,6 +16,33 @@ const LINUX_SAFE_MONOSPACE_FONT_STACK =
   "\"Noto Sans Mono\", \"DejaVu Sans Mono\", \"Liberation Mono\", \"Ubuntu Mono\", ui-monospace, \"SFMono-Regular\", \"SF Mono\", Menlo, Consolas, monospace";
 const LINUX_TOOLTIP_COLLISION_PADDING_TOP = 44;
 const LINUX_WINDOW_CONTROLS_SAFE_AREA_RIGHT = 138;
+const LINUX_SCROLL_FADE_MITIGATION_MARKER =
+  "codex-linux-issue-1048-temporary-scroll-fade-mitigation";
+
+function applyLinuxSidebarScrollFadePerformancePatch(currentSource) {
+  if (currentSource.includes(LINUX_SCROLL_FADE_MITIGATION_MARKER)) {
+    return currentSource;
+  }
+
+  const scrollFadeSelector = ".vertical-scroll-fade-mask{";
+  const scrollFadeAnimation = "animation-name:edge-fade;";
+  const scrollFadeTimeline = "animation-timeline:scroll(self y)";
+  if (
+    currentSource.includes(scrollFadeSelector) &&
+    currentSource.includes(scrollFadeAnimation) &&
+    currentSource.includes(scrollFadeTimeline)
+  ) {
+    // Temporary mitigation for https://github.com/ilysenko/codex-desktop-linux/issues/1048.
+    // Keep a static fade at both edges while avoiding the expensive scroll-linked
+    // custom-property animation seen with the current upstream Electron build.
+    return `${currentSource}/* ${LINUX_SCROLL_FADE_MITIGATION_MARKER} */.vertical-scroll-fade-mask{--top-fade:var(--edge-fade-distance,1rem);--bottom-fade:var(--edge-fade-distance,1rem);animation:none!important;animation-timeline:auto!important}`;
+  }
+
+  console.warn(
+    "WARN: Could not find sidebar scroll fade animation — skipping temporary Linux scroll performance mitigation",
+  );
+  return currentSource;
+}
 
 function applyLinuxSafeMonospaceFontStackPatch(currentSource) {
   const safeLinuxMonoFontPattern =
@@ -2324,6 +2351,7 @@ module.exports = {
   applyLinuxWindowControlsSafeAreaPatch,
   applyLinuxSafeMonospaceFontStackPatch,
   applyLinuxSettingsSearchVisibilityPatch,
+  applyLinuxSidebarScrollFadePerformancePatch,
   applyLinuxFastModeModelGuardPatch,
   applyLinuxSkillsListDedupePatch,
   applyLocalEnvironmentActionModalDraftPatch,
