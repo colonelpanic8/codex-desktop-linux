@@ -373,7 +373,7 @@ function applyCurrentComputerUseSettingsContract(currentSource) {
 
   let cardChanged = false;
   const cardPattern =
-    /let ([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*),([A-Za-z_$][\w$]*)\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\3\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\),([A-Za-z_$][\w$]*);/g;
+    /let ([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*),([A-Za-z_$][\w$]*)\),([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\(\3\),((?:[A-Za-z_$][\w$]*=[A-Za-z_$][\w$]*\([A-Za-z_$][\w$]*\),)+)([A-Za-z_$][\w$]*);/g;
   patchedSource = patchedSource.replace(
     cardPattern,
     (
@@ -384,9 +384,7 @@ function applyCurrentComputerUseSettingsContract(currentSource) {
       emptyPluginsVar,
       marketplacePathVar,
       marketplacePathHookVar,
-      featureFlagVar,
-      featureFlagHookVar,
-      featureFlagArgVar,
+      intermediateDeclarations,
       computerUsePluginVar,
       offset,
     ) => {
@@ -404,7 +402,7 @@ function applyCurrentComputerUseSettingsContract(currentSource) {
         return match;
       }
       cardChanged = true;
-      return `let ${pluginsQueryVar}=${pluginsHookVar}(${selectedHostVar},${emptyPluginsVar}),${marketplacePathVar}=${marketplacePathHookVar}(${selectedHostVar}),${featureFlagVar}=${featureFlagHookVar}(${featureFlagArgVar});${platformVar}===\`linux\`&&!${pluginsQueryVar}.availablePlugins.some(e=>e.plugin?.name===${pluginNameVar}||e.plugin?.id?.split(\`@\`)[0]===${pluginNameVar})&&(${pluginsQueryVar}={...${pluginsQueryVar},availablePlugins:[...${pluginsQueryVar}.availablePlugins,{marketplaceName:\`openai-bundled\`,marketplacePath:${marketplacePathVar},logoPath:new URL(\`computer-use-plugin-icon-linux.png\`,import.meta.url).href,logoDarkPath:new URL(\`computer-use-plugin-icon-linux.png\`,import.meta.url).href,plugin:{id:${pluginNameVar},name:${pluginNameVar},installed:!0,enabled:!0}}]});let ${computerUsePluginVar};`;
+      return `let ${pluginsQueryVar}=${pluginsHookVar}(${selectedHostVar},${emptyPluginsVar}),${marketplacePathVar}=${marketplacePathHookVar}(${selectedHostVar}),${intermediateDeclarations.slice(0, -1)};${platformVar}===\`linux\`&&!${pluginsQueryVar}.availablePlugins.some(e=>e.plugin?.name===${pluginNameVar}||e.plugin?.id?.split(\`@\`)[0]===${pluginNameVar})&&(${pluginsQueryVar}={...${pluginsQueryVar},availablePlugins:[...${pluginsQueryVar}.availablePlugins,{marketplaceName:\`openai-bundled\`,marketplacePath:${marketplacePathVar},logoPath:new URL(\`computer-use-plugin-icon-linux.png\`,import.meta.url).href,logoDarkPath:new URL(\`computer-use-plugin-icon-linux.png\`,import.meta.url).href,plugin:{id:${pluginNameVar},name:${pluginNameVar},installed:!0,enabled:!0}}]});let ${computerUsePluginVar};`;
     },
   );
 
