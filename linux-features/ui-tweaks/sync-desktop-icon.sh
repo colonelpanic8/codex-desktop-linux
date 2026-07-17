@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-icon_source="${1:-}"
-[ -n "$icon_source" ] && [ -f "$icon_source" ] && [ ! -L "$icon_source" ] || exit 0
+selection="${1:-}"
+case "$selection" in
+    chatgpt|codex-dark|codex-light) ;;
+    *) exit 0 ;;
+esac
 
 home_dir="${HOME:-}"
 [ -n "$home_dir" ] || exit 0
@@ -16,7 +19,8 @@ data_home="${XDG_DATA_HOME:-$home_dir/.local/share}"
 applications_dir="$data_home/applications"
 icons_dir="$data_home/icons/hicolor/256x256/apps"
 desktop_target="$applications_dir/$app_id.desktop"
-icon_target="$icons_dir/$app_id-dock-selection.png"
+icon_target="$icons_dir/$app_id-dock-$selection.png"
+legacy_icon_target="$icons_dir/$app_id-dock-selection.png"
 marker="X-Codex-Linux-Dock-Icon=1"
 
 if [ -e "$desktop_target" ] || [ -L "$desktop_target" ]; then
@@ -41,12 +45,15 @@ desktop_tmp="$(mktemp "$applications_dir/.$app_id.desktop.XXXXXX")"
 icon_tmp="$(mktemp "$icons_dir/.$app_id-dock-selection.XXXXXX")"
 trap 'rm -f -- "$desktop_tmp" "$icon_tmp"' EXIT
 
-install -m 0644 "$icon_source" "$icon_tmp"
+cat > "$icon_tmp"
+[ -s "$icon_tmp" ] || exit 0
+chmod 0644 "$icon_tmp"
 awk -v icon="$icon_target" -v marker="$marker" '
     $0 == marker { next }
     /^Icon=/ && !icon_written { print "Icon=" icon; icon_written=1; next }
+    /^\[/ && $0 != "[Desktop Entry]" && !marker_written { print marker; marker_written=1 }
     { print }
-    END { if (icon_written) print marker }
+    END { if (icon_written && !marker_written) print marker }
 ' "$desktop_source" > "$desktop_tmp"
 chmod 0644 "$desktop_tmp"
 
@@ -59,8 +66,10 @@ if [ ! -f "$desktop_target" ] || ! cmp -s "$desktop_tmp" "$desktop_target"; then
     mv -f -- "$desktop_tmp" "$desktop_target"
     changed=1
 fi
+if [ -f "$legacy_icon_target" ] && [ ! -L "$legacy_icon_target" ]; then
+    rm -f -- "$legacy_icon_target"
+fi
 
 if [ "$changed" -eq 1 ] && [[ "${XDG_CURRENT_DESKTOP:-}" == *KDE* ]]; then
-    command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental >/dev/null 2>&1 || true
-    command -v qdbus6 >/dev/null 2>&1 && qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.refreshCurrentShell >/dev/null 2>&1 || true
+    command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 >/dev/null 2>&1 || true
 fi

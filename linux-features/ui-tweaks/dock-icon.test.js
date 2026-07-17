@@ -131,7 +131,10 @@ test("main patch enables official previews and synchronizes Linux window and tra
   assert.match(patched, /globalThis\.codexLinuxDockIconImage=s/);
   assert.match(patched, /are\(\)\?\.tray/);
   assert.match(patched, /sync-desktop-icon\.sh/);
-  assert.match(patched, /require\(`node:child_process`\)\.spawn\(t,\[o\]/);
+  assert.match(patched, /crop\(\{x:34,y:34,width:956,height:956\}\)/);
+  assert.match(patched, /crop\(\{x:13,y:23,width:998,height:998\}\)/);
+  assert.match(patched, /require\(`node:child_process`\)\.spawn\(f,\[l\]/);
+  assert.match(patched, /e\.stdin\.end\(s\.toPNG\(\)\)/);
   assert.match(patched, /codexLinuxDockIconImage\.isEmpty\(\)/);
   assert.match(patched, /n\.setImage\(globalThis\.codexLinuxDockIconImage\)/);
   assert.match(
@@ -393,58 +396,54 @@ function createDesktopSyncFixture() {
     },
     firstIcon,
     managedDesktop: path.join(dataHome, "applications", "codex-desktop.desktop"),
-    managedIcon: path.join(
+    managedIcon: (selection) => path.join(
       dataHome,
       "icons",
       "hicolor",
       "256x256",
       "apps",
-      "codex-desktop-dock-selection.png",
+      `codex-desktop-dock-${selection}.png`,
     ),
     secondIcon,
     tempDir,
   };
 }
 
-function runDesktopSync(iconPath, env) {
+function runDesktopSync(selection, iconPath, env) {
   return childProcess.spawnSync(
     "bash",
-    [path.join(__dirname, "sync-desktop-icon.sh"), iconPath],
-    { encoding: "utf8", env },
+    [path.join(__dirname, "sync-desktop-icon.sh"), selection],
+    { encoding: "utf8", env, input: fs.readFileSync(iconPath) },
   );
 }
 
 test("desktop synchronization updates a managed KDE launcher atomically", () => {
   const fixture = createDesktopSyncFixture();
   try {
-    const first = runDesktopSync(fixture.firstIcon, fixture.env);
+    const first = runDesktopSync("chatgpt", fixture.firstIcon, fixture.env);
     assert.equal(first.status, 0, first.stderr);
-    assert.equal(fs.readFileSync(fixture.managedIcon, "utf8"), "first-icon");
+    assert.equal(fs.readFileSync(fixture.managedIcon("chatgpt"), "utf8"), "first-icon");
     assert.match(
       fs.readFileSync(fixture.managedDesktop, "utf8"),
-      new RegExp(`^Icon=${fixture.managedIcon.replace(/[.*+?^\${}()|[\]\\]/g, "\\$&")}$`, "m"),
+      new RegExp(`^Icon=${fixture.managedIcon("chatgpt").replace(/[.*+?^\${}()|[\]\\]/g, "\\$&")}$`, "m"),
     );
     assert.match(fs.readFileSync(fixture.managedDesktop, "utf8"), /^X-Codex-Linux-Dock-Icon=1$/m);
-    assert.deepEqual(fs.readFileSync(fixture.callsPath, "utf8").trim().split("\n"), [
-      "kbuildsycoca6",
-      "qdbus6",
-    ]);
+    assert.deepEqual(fs.readFileSync(fixture.callsPath, "utf8").trim().split("\n"), ["kbuildsycoca6"]);
 
-    const repeated = runDesktopSync(fixture.firstIcon, fixture.env);
+    const repeated = runDesktopSync("chatgpt", fixture.firstIcon, fixture.env);
     assert.equal(repeated.status, 0, repeated.stderr);
-    assert.deepEqual(fs.readFileSync(fixture.callsPath, "utf8").trim().split("\n"), [
-      "kbuildsycoca6",
-      "qdbus6",
-    ]);
+    assert.deepEqual(fs.readFileSync(fixture.callsPath, "utf8").trim().split("\n"), ["kbuildsycoca6"]);
 
-    const second = runDesktopSync(fixture.secondIcon, fixture.env);
+    const second = runDesktopSync("codex-dark", fixture.secondIcon, fixture.env);
     assert.equal(second.status, 0, second.stderr);
-    assert.equal(fs.readFileSync(fixture.managedIcon, "utf8"), "second-icon");
+    assert.equal(fs.readFileSync(fixture.managedIcon("codex-dark"), "utf8"), "second-icon");
+    assert.match(
+      fs.readFileSync(fixture.managedDesktop, "utf8"),
+      new RegExp(`^Icon=${fixture.managedIcon("codex-dark").replace(/[.*+?^\${}()|[\]\\]/g, "\\$&")}$`, "m"),
+    );
     assert.deepEqual(fs.readFileSync(fixture.callsPath, "utf8").trim().split("\n"), [
       "kbuildsycoca6",
-      "qdbus6",
       "kbuildsycoca6",
-      "qdbus6",
     ]);
   } finally {
     fs.rmSync(fixture.tempDir, { recursive: true, force: true });
@@ -457,14 +456,27 @@ test("desktop synchronization leaves an unmanaged user launcher untouched", () =
     fs.mkdirSync(path.dirname(fixture.managedDesktop), { recursive: true });
     fs.writeFileSync(fixture.managedDesktop, "[Desktop Entry]\nName=Custom\nIcon=custom\n");
 
-    const result = runDesktopSync(fixture.firstIcon, fixture.env);
+    const result = runDesktopSync("chatgpt", fixture.firstIcon, fixture.env);
 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       fs.readFileSync(fixture.managedDesktop, "utf8"),
       "[Desktop Entry]\nName=Custom\nIcon=custom\n",
     );
-    assert.equal(fs.existsSync(fixture.managedIcon), false);
+    assert.equal(fs.existsSync(fixture.managedIcon("chatgpt")), false);
+    assert.equal(fs.existsSync(fixture.callsPath), false);
+  } finally {
+    fs.rmSync(fixture.tempDir, { recursive: true, force: true });
+  }
+});
+
+test("desktop synchronization rejects invalid selections without touching Plasma", () => {
+  const fixture = createDesktopSyncFixture();
+  try {
+    const result = runDesktopSync("../../invalid", fixture.firstIcon, fixture.env);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.existsSync(fixture.managedDesktop), false);
     assert.equal(fs.existsSync(fixture.callsPath), false);
   } finally {
     fs.rmSync(fixture.tempDir, { recursive: true, force: true });
