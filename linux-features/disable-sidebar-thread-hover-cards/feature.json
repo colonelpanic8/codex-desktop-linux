@@ -1,0 +1,9 @@
+{
+  "id": "disable-sidebar-thread-hover-cards",
+  "title": "Disable Sidebar Thread Hover Cards",
+  "description": "Avoids renderer stalls by disabling watcher-backed metadata cards on local sidebar thread rows.",
+  "defaultEnabled": false,
+  "entrypoints": {
+    "patchDescriptors": "./patch.js"
+  }
+}

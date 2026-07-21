@@ -4,6 +4,7 @@ let
     "appshots"
     "codex-wrapper-updater"
     "directory-only-working-tree-watch"
+    "disable-sidebar-thread-hover-cards"
     "frameless-titlebar"
     "global-dictation"
     "mcp-helper-reaper"

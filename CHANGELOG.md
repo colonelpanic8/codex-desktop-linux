@@ -20,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   registration with a bounded modifier release watcher, while Wayland uses the
   XDG GlobalShortcuts and RemoteDesktop portals for press, release, and paste
   handling without direct input-device access or elevated permissions.
+- An opt-in `disable-sidebar-thread-hover-cards` Linux feature prevents local
+  thread rows from mounting watcher-backed repository metadata on hover. It is
+  intended as a performance workaround for systems where those hover cards
+  dramatically stall the renderer.
 
 ### Changed
 
