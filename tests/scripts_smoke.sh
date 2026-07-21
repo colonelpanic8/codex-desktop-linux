@@ -4949,37 +4949,60 @@ SCRIPT
         || fail "Launcher should preserve explicit renderer URL override"
     assert_contains "$launcher_log" "Skipping packaged webview setup because ELECTRON_RENDERER_URL override is enabled"
 
+    run_packaged_launcher() {
+        local test_path="${1:-$HOST_TOOL_PATH}"
+        timeout 20 env -i \
+            PATH="$test_path" \
+            HOME="$home_dir" \
+            XDG_RUNTIME_DIR="$runtime_dir" \
+            CODEX_CLI_PATH="$TRUE_BIN" \
+            CODEX_WEBVIEW_PORT=45675 \
+            ELECTRON_RENDERER_URL="http://127.0.0.1:9999/" \
+            ELECTRON_MARKER="$electron_marker" \
+            "$app_dir/start.sh"
+    }
+
     printf '%s\n' '<!doctype html><title>Codex</title><div id="startup-loader">first build</div>' \
         > "$app_dir/content/webview/index.html"
     rm -f "$electron_marker"
-    timeout 20 env -i \
-        PATH="$HOST_TOOL_PATH" \
-        HOME="$home_dir" \
-        XDG_RUNTIME_DIR="$runtime_dir" \
-        CODEX_CLI_PATH="$TRUE_BIN" \
-        CODEX_WEBVIEW_PORT=45675 \
-        ELECTRON_MARKER="$electron_marker" \
-        "$app_dir/start.sh" >/dev/null 2>&1
+    run_packaged_launcher >/dev/null 2>&1
     local first_renderer_url
     first_renderer_url="$(cat "$electron_marker")"
     [[ "$first_renderer_url" =~ ^http://127\.0\.0\.1:45675/\?v=[0-9a-f]{64}$ ]] \
         || fail "Packaged renderer URL should include the webview index content hash"
+    assert_contains "$launcher_log" "Ignoring inherited ELECTRON_RENDERER_URL"
+    assert_contains "$launcher_log" "Packaged webview renderer URL: $first_renderer_url"
+
+    rm -f "$electron_marker"
+    run_packaged_launcher >/dev/null 2>&1
+    [ "$(cat "$electron_marker")" = "$first_renderer_url" ] \
+        || fail "Packaged renderer URL should remain stable while the webview index is unchanged"
 
     printf '%s\n' '<!doctype html><title>Codex</title><div id="startup-loader">second build</div>' \
         > "$app_dir/content/webview/index.html"
     rm -f "$electron_marker"
-    timeout 20 env -i \
-        PATH="$HOST_TOOL_PATH" \
-        HOME="$home_dir" \
-        XDG_RUNTIME_DIR="$runtime_dir" \
-        CODEX_CLI_PATH="$TRUE_BIN" \
-        CODEX_WEBVIEW_PORT=45675 \
-        ELECTRON_MARKER="$electron_marker" \
-        "$app_dir/start.sh" >/dev/null 2>&1
+    run_packaged_launcher >/dev/null 2>&1
     local second_renderer_url
     second_renderer_url="$(cat "$electron_marker")"
     [ "$first_renderer_url" != "$second_renderer_url" ] \
         || fail "Packaged renderer URL should change when the webview index changes"
+
+    local fake_bin="$workspace/fake-bin"
+    local fingerprint_error="$workspace/fingerprint-error.log"
+    mkdir -p "$fake_bin"
+    cat > "$fake_bin/sha256sum" <<'SCRIPT'
+#!/usr/bin/env bash
+exit 73
+SCRIPT
+    chmod +x "$fake_bin/sha256sum"
+    rm -f "$electron_marker"
+    set +e
+    run_packaged_launcher "$fake_bin:$HOST_TOOL_PATH" > "$fingerprint_error" 2>&1
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "Launcher should fail when the webview fingerprint cannot be calculated"
+    [ ! -e "$electron_marker" ] || fail "Fingerprint failure should stop before Electron"
+    assert_contains "$fingerprint_error" "could not fingerprint"
 }
 
 test_launcher_extra_bundled_plugin_cache_rollback() {

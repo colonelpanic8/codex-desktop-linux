@@ -258,11 +258,25 @@ configure_multi_launch_instance() {
 
 configure_multi_launch_instance "$@"
 WEBVIEW_ORIGIN="http://127.0.0.1:$CODEX_LINUX_WEBVIEW_PORT"
-WEBVIEW_RENDERER_URL="$WEBVIEW_ORIGIN/"
-if [ -f "$WEBVIEW_DIR/index.html" ]; then
-    WEBVIEW_INDEX_SHA256="$(sha256sum "$WEBVIEW_DIR/index.html" | awk '{print $1}')"
-    WEBVIEW_RENDERER_URL="${WEBVIEW_ORIGIN}/?v=$WEBVIEW_INDEX_SHA256"
-fi
+
+resolve_webview_renderer_url() {
+    local webview_index="$WEBVIEW_DIR/index.html"
+    local index_sha256
+
+    if [ ! -f "$webview_index" ]; then
+        printf '%s/\n' "$WEBVIEW_ORIGIN"
+        return 0
+    fi
+    if ! index_sha256="$(sha256sum "$webview_index" 2>/dev/null | awk '{print $1}')" ||
+       [[ ! "$index_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+        printf '%s\n' "$CODEX_LINUX_APP_DISPLAY_NAME could not fingerprint $webview_index; install coreutils and rebuild the app." >&2
+        return 1
+    fi
+
+    printf '%s/?v=%s\n' "$WEBVIEW_ORIGIN" "$index_sha256"
+}
+
+WEBVIEW_RENDERER_URL="$(resolve_webview_renderer_url)" || exit 1
 
 mkdir -p "$LOG_DIR" "$APP_CONFIG_DIR" "$APP_STATE_DIR" "$LAUNCH_ACTION_RUNTIME_DIR"
 chmod 700 "$LAUNCH_ACTION_RUNTIME_DIR" 2>/dev/null || true
@@ -357,6 +371,7 @@ else
 fi
 
 echo "[$(date -Is)] Starting $CODEX_LINUX_APP_DISPLAY_NAME launcher"
+echo "Packaged webview renderer URL: $WEBVIEW_RENDERER_URL"
 if [ "$MULTI_LAUNCH_ACTIVE" -eq 1 ]; then
     echo "Multi-launch instance: id=$CODEX_LINUX_INSTANCE_ID webview_port=$CODEX_LINUX_WEBVIEW_PORT state_dir=$APP_STATE_DIR user_data_dir=$CODEX_ELECTRON_USER_DATA_DIR"
 fi
