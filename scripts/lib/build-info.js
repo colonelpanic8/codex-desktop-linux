@@ -257,6 +257,22 @@ function appBundleVersion(appDir) {
   if (!fs.existsSync(infoPath)) {
     return null;
   }
+
+  // Upstream app bundles normally ship an XML plist. Read that common shape
+  // directly so build metadata does not depend on python3 being discoverable
+  // in the caller's PATH (GUI and Nix build environments often have a narrow
+  // PATH). Keep plistlib below for binary plists and uncommon XML layouts.
+  const plistSource = fs.readFileSync(infoPath, "utf8");
+  for (const key of ["CFBundleShortVersionString", "CFBundleVersion"]) {
+    const match = plistSource.match(
+      new RegExp(`<key>\\s*${key}\\s*</key>\\s*<string>\\s*([^<]*?)\\s*</string>`, "u"),
+    );
+    const version = match?.[1]?.trim();
+    if (version) {
+      return version;
+    }
+  }
+
   const result = childProcess.spawnSync(
     "python3",
     ["-c", "import plistlib,sys; p=plistlib.load(open(sys.argv[1],'rb')); print(p.get('CFBundleShortVersionString') or p.get('CFBundleVersion') or '')", infoPath],
