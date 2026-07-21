@@ -272,13 +272,13 @@ test("search drift remains byte-identical", () => {
   assert.match(warnings[0], /current Dock icon settings search contract/);
 });
 
-test("descriptor targets the current General settings asset", () => {
+test("descriptors select current contracts across renderer hash changes", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dock-icon-assets-"));
   try {
     const assetsDir = path.join(tempDir, "webview", "assets");
     fs.mkdirSync(assetsDir, { recursive: true });
-    const settingsPath = path.join(assetsDir, "general-settings-BWZCvLqI.js");
-    const searchPath = path.join(assetsDir, "settings-page-CpgnnFjp.js");
+    const settingsPath = path.join(assetsDir, "general-settings-HashNext1.js");
+    const searchPath = path.join(assetsDir, "settings-page-HashNext2.js");
     fs.writeFileSync(settingsPath, currentSettingsSource);
     fs.writeFileSync(searchPath, currentSearchSource);
 
@@ -296,13 +296,15 @@ test("descriptor targets the current General settings asset", () => {
       "missing",
     );
     assert.deepEqual(searchResult, { matched: 1, changed: 1 });
-    assert.equal(descriptors[1].pattern.test("general-settings-BWZCvLqI.js"), true);
-    assert.equal(descriptors[1].pattern.test("general-settings-CsA3Lt9Z.js"), false);
-    assert.equal(descriptors[1].pattern.test("general-settings-stale.js"), false);
-    assert.equal(descriptors[2].pattern.test("settings-page-CpgnnFjp.js"), true);
-    assert.equal(descriptors[2].pattern.test("settings-page-BOdFN1v1.js"), false);
-    assert.equal(descriptors[2].pattern.test("settings-page-stale.js"), false);
-    assert.equal(descriptors[1].pattern.test("general-settings-DMO9G9gL.js"), false);
+    assert.equal(descriptors[1].pattern.test("general-settings-HashNext1.js"), true);
+    assert.equal(descriptors[1].pattern.test("general-settings-wrapper.js"), true);
+    assert.equal(descriptors[1].assetMatch(currentSettingsSource), true);
+    assert.equal(descriptors[1].assetMatch(applyDockIconSettingsPatch(currentSettingsSource)), true);
+    assert.equal(descriptors[1].assetMatch("export{row}"), false);
+    assert.equal(descriptors[2].pattern.test("settings-page-HashNext2.js"), true);
+    assert.equal(descriptors[2].assetMatch(currentSearchSource), true);
+    assert.equal(descriptors[2].assetMatch(applyDockIconSearchPatch(currentSearchSource)), true);
+    assert.equal(descriptors[2].assetMatch("export{settings}"), false);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

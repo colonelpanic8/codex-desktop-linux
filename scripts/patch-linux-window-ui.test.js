@@ -199,6 +199,7 @@ const {
 const {
   findCodexRequestWebviewAsset,
   patchAssetFiles,
+  patchUniqueAssetFile,
 } = require("./patches/lib/assets.js");
 
 const mainBundlePrefix =
@@ -373,6 +374,103 @@ test("asset patch helpers match every file when passed a global regex", () => {
     assert.deepEqual(result, { matched: 2, changed: 2 });
     assert.equal(fs.readFileSync(path.join(assetsDir, "index-a.js"), "utf8"), "A");
     assert.equal(fs.readFileSync(path.join(assetsDir, "index-b.js"), "utf8"), "B");
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("semantic asset patch selects one contract across hashed siblings", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-asset-semantic-"));
+  try {
+    const assetsDir = path.join(tempRoot, "webview", "assets");
+    fs.mkdirSync(assetsDir, { recursive: true });
+    fs.writeFileSync(path.join(assetsDir, "general-settings-wrapper123.js"), "export{row}", "utf8");
+    fs.writeFileSync(path.join(assetsDir, "general-settings-target456.js"), "current-contract", "utf8");
+
+    const first = patchUniqueAssetFile(
+      tempRoot,
+      /^general-settings-[A-Za-z0-9_-]+\.js$/,
+      (source) => source.includes("current-contract") || source.includes("patched-contract"),
+      (source) => source.replace("current-contract", "patched-contract"),
+      "missing semantic bundle",
+      "ambiguous semantic bundle",
+    );
+    const second = patchUniqueAssetFile(
+      tempRoot,
+      /^general-settings-[A-Za-z0-9_-]+\.js$/,
+      (source) => source.includes("current-contract") || source.includes("patched-contract"),
+      (source) => source.replace("current-contract", "patched-contract"),
+      "missing semantic bundle",
+      "ambiguous semantic bundle",
+    );
+
+    assert.deepEqual(first, {
+      matched: 1,
+      changed: 1,
+      assetName: "general-settings-target456.js",
+    });
+    assert.deepEqual(second, {
+      matched: 1,
+      changed: 0,
+      assetName: "general-settings-target456.js",
+    });
+    assert.equal(fs.readFileSync(path.join(assetsDir, "general-settings-wrapper123.js"), "utf8"), "export{row}");
+    assert.equal(fs.readFileSync(path.join(assetsDir, "general-settings-target456.js"), "utf8"), "patched-contract");
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("semantic asset patch rejects ambiguous contracts without writing", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-asset-ambiguous-"));
+  try {
+    const assetsDir = path.join(tempRoot, "webview", "assets");
+    fs.mkdirSync(assetsDir, { recursive: true });
+    for (const name of ["settings-page-first123.js", "settings-page-second456.js"]) {
+      fs.writeFileSync(path.join(assetsDir, name), "current-contract", "utf8");
+    }
+
+    const { value, warnings } = captureWarns(() => patchUniqueAssetFile(
+      tempRoot,
+      /^settings-page-[A-Za-z0-9_-]+\.js$/,
+      (source) => source.includes("current-contract"),
+      (source) => source.replace("current-contract", "patched-contract"),
+      "missing semantic bundle",
+      "ambiguous semantic bundle",
+    ));
+
+    assert.deepEqual(value, { matched: 2, changed: 0, assetName: null });
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /ambiguous semantic bundle/);
+    assert.match(warnings[0], /settings-page-first123\.js, settings-page-second456\.js/);
+    for (const name of ["settings-page-first123.js", "settings-page-second456.js"]) {
+      assert.equal(fs.readFileSync(path.join(assetsDir, name), "utf8"), "current-contract");
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("semantic asset patch skips unknown contracts without writing", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-asset-unknown-"));
+  try {
+    const assetsDir = path.join(tempRoot, "webview", "assets");
+    fs.mkdirSync(assetsDir, { recursive: true });
+    const assetPath = path.join(assetsDir, "general-settings-unknown123.js");
+    fs.writeFileSync(assetPath, "unknown-contract", "utf8");
+
+    const { value, warnings } = captureWarns(() => patchUniqueAssetFile(
+      tempRoot,
+      /^general-settings-[A-Za-z0-9_-]+\.js$/,
+      (source) => source.includes("current-contract"),
+      (source) => source.replace("current-contract", "patched-contract"),
+      "missing semantic bundle",
+      "ambiguous semantic bundle",
+    ));
+
+    assert.deepEqual(value, { matched: 0, changed: 0, assetName: null });
+    assert.deepEqual(warnings, ["missing semantic bundle"]);
+    assert.equal(fs.readFileSync(assetPath, "utf8"), "unknown-contract");
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
