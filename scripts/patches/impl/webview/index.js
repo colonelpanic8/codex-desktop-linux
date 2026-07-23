@@ -34,7 +34,6 @@ function applyLinuxSettingsSearchVisibilityPatch(currentSource) {
     const text = currentSource.slice(match.index, closeBrace + 1);
     if (
       text.includes("isSystemBackdropSupported") &&
-      text.includes("?.platform===`darwin`") &&
       text.includes("sectionSlug===`appearance`")
     ) {
       settingsSearchFunction = {
@@ -48,15 +47,11 @@ function applyLinuxSettingsSearchVisibilityPatch(currentSource) {
     }
   }
 
-  const darwinVariable = settingsSearchFunction?.text.match(
-    /,([A-Za-z_$][\w$]*)=[A-Za-z_$][\w$]*\?\.platform===`darwin`,/u,
-  )?.[1];
   const resultVariable = settingsSearchFunction?.text.match(
     /return ([A-Za-z_$][\w$]*)\}$/u,
   )?.[1];
   if (
     settingsSearchFunction == null ||
-    darwinVariable == null ||
     resultVariable == null
   ) {
     if (
@@ -71,10 +66,10 @@ function applyLinuxSettingsSearchVisibilityPatch(currentSource) {
   }
 
   const helper =
-    `var codexLinuxDarwinOnlySettingsSearchMessageIds=new Set([\`settings.general.appearance.dockIcon.chatGPT.ariaLabel\`,\`settings.general.appearance.dockIcon.codex.ariaLabel\`,\`settings.general.appearance.dockIcon.label\`,\`settings.general.appearance.dockIcon.row.description\`]);function codexLinuxFilterSettingsSearchSection(e,t){if(e.sectionSlug!==\`appearance\`||t)return e;let n=e.messages.filter(e=>!codexLinuxDarwinOnlySettingsSearchMessageIds.has(e.id));return n.length===e.messages.length?e:{...e,messages:n}}`;
+    `var codexLinuxDarwinOnlySettingsSearchMessageIds=new Set([\`settings.general.appearance.dockIcon.chatGPT.ariaLabel\`,\`settings.general.appearance.dockIcon.codex.ariaLabel\`,\`settings.general.appearance.dockIcon.label\`,\`settings.general.appearance.dockIcon.row.description\`]);function codexLinuxFilterSettingsSearchSection(e){if(e.sectionSlug!==\`appearance\`||navigator.userAgent.includes(\`Mac\`))return e;let n=e.messages.filter(e=>!codexLinuxDarwinOnlySettingsSearchMessageIds.has(e.id));return n.length===e.messages.length?e:{...e,messages:n}}`;
   const returnNeedle = `return ${resultVariable}}`;
   const returnPatch =
-    `return ${resultVariable}.map(e=>codexLinuxFilterSettingsSearchSection(e,${darwinVariable}))}`;
+    `return ${resultVariable}.map(e=>codexLinuxFilterSettingsSearchSection(e))}`;
   const patchedFunction = settingsSearchFunction.text
     .replace(returnNeedle, returnPatch);
 
@@ -1732,6 +1727,10 @@ function applyBrowserAnnotationScreenshotPatch(currentSource) {
       "if(M&&j?.annotation.anchor.kind===`element`){let e=tt==null?null:ed(tt);at=e?.rect??Td(j.annotation.anchor),st=e?.borderRadius,ot=Wd(j.annotation.anchor,at,S.width,S.height)}";
     const currentCommentPreloadElementPatch =
       "if(M&&j?.annotation.anchor.kind===`element`){at=Td(j.annotation.anchor),st=void 0,ot=Wd(j.annotation.anchor,at,S.width,S.height)}";
+    const latestCommentPreloadElementNeedle =
+      "if(P&&M?.annotation.anchor.kind===`element`){Mt=xt[0]??0;let e=bt==null?null:hs(bt),t=e?.rect??Ss(M.annotation.anchor);jt=e?.borderRadius,At=Vs(M.annotation.anchor,t,C.width,C.height),kt=Is(M.annotation.anchor,t,bt),I=bc(F,C,{clipToVisibleArea:!0,colorIndexes:xt.slice(1),colorIndexOffset:1,viewportSize:M.annotation.viewportSize})}";
+    const latestCommentPreloadElementPatch =
+      "if(P&&M?.annotation.anchor.kind===`element`){Mt=xt[0]??0;let t=Ss(M.annotation.anchor);jt=void 0,At=Vs(M.annotation.anchor,t,C.width,C.height),kt=Is(M.annotation.anchor,t),I=bc(F,C,{clipToVisibleArea:!0,colorIndexes:xt.slice(1),colorIndexOffset:1,viewportSize:M.annotation.viewportSize})}";
     const currentElementScreenshotRegex =
       /if\(([A-Za-z_$][\w$]*)&&([A-Za-z_$][\w$]*)\?\.anchor\.kind===`element`\)\{let e=[^;{}]+?\?\?null,t=e==null\?null:[A-Za-z_$][\w$]*\(e\);([A-Za-z_$][\w$]*)=t\?\.rect\?\?([A-Za-z_$][\w$]*)\(\2\.anchor\),([A-Za-z_$][\w$]*)=t\?\.borderRadius\}/;
     const currentCommentPreloadElementRegex =
@@ -1742,6 +1741,11 @@ function applyBrowserAnnotationScreenshotPatch(currentSource) {
       patchedSource = patchedSource.replace(
         currentCommentPreloadElementNeedle,
         currentCommentPreloadElementPatch,
+      );
+    } else if (patchedSource.includes(latestCommentPreloadElementNeedle)) {
+      patchedSource = patchedSource.replace(
+        latestCommentPreloadElementNeedle,
+        latestCommentPreloadElementPatch,
       );
     } else if (currentElementScreenshotRegex.test(patchedSource)) {
       const currentElementScreenshotMatch = patchedSource.match(currentElementScreenshotRegex);

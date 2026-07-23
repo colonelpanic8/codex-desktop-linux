@@ -225,28 +225,6 @@ function inferSettingsRowExportName(source) {
   return null;
 }
 
-function importBindings(source) {
-  const bindings = new Map();
-  const importPattern = /import\{([^}]*)\}from"\.\/([^"]+)"/g;
-  let match;
-  while ((match = importPattern.exec(source)) != null) {
-    const [, specifiers, assetName] = match;
-    for (const rawSpecifier of specifiers.split(",")) {
-      const specifier = rawSpecifier.trim();
-      if (specifier.length === 0) {
-        continue;
-      }
-      const aliased = specifier.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/);
-      if (aliased != null) {
-        bindings.set(aliased[2], { assetName, exportName: aliased[1] });
-      } else {
-        bindings.set(specifier, { assetName, exportName: specifier });
-      }
-    }
-  }
-  return bindings;
-}
-
 function inferRuntimeDependenciesFromSettingsSource(source) {
   const routeFactoryLocal = source.match(
     /["'](?:linux-desktop|general-settings)["']:\s*([A-Za-z_$][\w$]*)\(async\(\)=>/,
@@ -304,13 +282,6 @@ function inferRuntimeDependenciesFromSettingsSource(source) {
     || jsxFactoryMatch.index < initializationStart
     || jsxFactoryMatch.index > initializationEnd
   ) {
-    return null;
-  }
-
-  const bindings = importBindings(source);
-  const jsxBinding = bindings.get(jsxFactoryLocal);
-  const reactBinding = bindings.get(reactFactoryLocal);
-  if (jsxBinding == null || reactBinding == null) {
     return null;
   }
 
@@ -703,14 +674,12 @@ function collectLinuxDesktopRouteAndNavigationPatches(
     throw new Error(`Required Keybinds settings patch failed: missing webview assets directory ${webviewAssetsDir}`);
   }
 
-  // Newer builds split the lazy settings route map out of `app-main-*.js`/`index-*.js`
-  // into hashed concatenation chunks. Some keep the `app-initial~app-main~*`
-  // prefix; others are settings-page chunks without that prefix. The
-  // icon/navigation metadata still lives in a settings-page chunk, so scan any
-  // hashed settings-page JS file plus the legacy app-main/index candidates.
+  // The current upstream build keeps the lazy settings route map and its
+  // navigation metadata in app-initial, while settings-page remains a separate
+  // lazy asset.
   const candidates = fs
     .readdirSync(webviewAssetsDir)
-    .filter((name) => /^(?:(?:app-main|index)-|app-initial~app-main~).*\.js$/.test(name) || /(?:^|~)settings-page(?:[-~].*)?\.js$/.test(name))
+    .filter((name) => name.endsWith(".js"))
     .sort();
 
   let routeMatched = false;
@@ -1163,10 +1132,9 @@ function applyKeybindsSettingsIndexPatch(currentSource) {
 }
 
 function isSettingsRouteBundleSource(currentSource) {
-  return currentSource.includes(linuxDesktopSettingsAsset)
-    || /"general-settings":[A-Za-z_$][\w$]*\(async\(\)=>\(await [A-Za-z_$][\w$]*\(async\(\)=>\{let\{GeneralSettings:[A-Za-z_$][\w$]*\}=await import\(`/u.test(
-      currentSource,
-    );
+  return /"(?:linux-desktop|general-settings)":[A-Za-z_$][\w$]*\(async\(\)=>\(await [A-Za-z_$][\w$]*\(async\(\)=>\{let\{(?:LinuxDesktopSettings|GeneralSettings):[A-Za-z_$][\w$]*\}=await import\(`/u.test(
+    currentSource,
+  );
 }
 
 function isSettingsSectionsMetadataBundleSource(currentSource) {
@@ -1199,7 +1167,10 @@ function isSettingsIconMapBundleSource(currentSource) {
 }
 
 function isSettingsNavigationBundleSource(currentSource) {
-  return /[A-Za-z_$][\w$]*=\[`general-settings`,(?:`linux-desktop`,)?`import`,/.test(currentSource)
+  return (
+    /[A-Za-z_$][\w$]*=`general-settings\.(?:linux-desktop\.)?import\.[^`]+`\.split\(`\.`\)/.test(currentSource)
+    || /[A-Za-z_$][\w$]*=\[`general-settings`,(?:`linux-desktop`,)?`import`,/.test(currentSource)
+  )
     && currentSource.includes("slugs:[`general-settings`,");
 }
 
@@ -1259,12 +1230,19 @@ function applyLinuxDesktopSettingsIconPatch(currentSource) {
 function applyLinuxDesktopSettingsNavigationPatch(currentSource) {
   let patchedSource = currentSource;
 
-  if (!/=\[`general-settings`,`linux-desktop`/.test(patchedSource)) {
-    const orderPattern = /([A-Za-z_$][\w$]*=\[`general-settings`,)(?=`import`,)/;
-    if (!orderPattern.test(patchedSource)) {
+  if (
+    !/=`general-settings\.linux-desktop\./.test(patchedSource)
+    && !/=\[`general-settings`,`linux-desktop`,/.test(patchedSource)
+  ) {
+    const orderPattern = /([A-Za-z_$][\w$]*=`general-settings\.)(?=import\.)/;
+    const arrayOrderPattern = /([A-Za-z_$][\w$]*=\[`general-settings`,)(?=`import`,)/;
+    if (orderPattern.test(patchedSource)) {
+      patchedSource = patchedSource.replace(orderPattern, "$1linux-desktop.");
+    } else if (arrayOrderPattern.test(patchedSource)) {
+      patchedSource = patchedSource.replace(arrayOrderPattern, "$1`linux-desktop`,");
+    } else {
       throw new Error("Required Keybinds settings patch failed: could not add Linux desktop nav order");
     }
-    patchedSource = patchedSource.replace(orderPattern, "$1`linux-desktop`,");
   }
 
   if (!patchedSource.includes("slugs:[`general-settings`,`linux-desktop`")) {

@@ -484,7 +484,7 @@ test("Linux settings search hides controls that cannot render", () => {
   assert.match(patched, /settings\.general\.appearance\.dockIcon\.label/);
   assert.match(
     patched,
-    /return m\.map\(e=>codexLinuxFilterSettingsSearchSection\(e,o\)\)/,
+    /return m\.map\(e=>codexLinuxFilterSettingsSearchSection\(e\)\)/,
   );
   assert.equal(
     (patched.match(/function codexLinuxFilterSettingsSearchSection\(/g) || []).length,
@@ -495,7 +495,7 @@ test("Linux settings search hides controls that cannot render", () => {
     "var codexLinuxDarwinOnlySettingsSearchMessageIds",
   );
   const helperEnd = patched.indexOf("function qn", helperStart);
-  const context = {};
+  const context = { navigator: { userAgent: "Codex Linux" } };
   vm.runInNewContext(
     `${patched.slice(helperStart, helperEnd)};globalThis.filter=codexLinuxFilterSettingsSearchSection`,
     context,
@@ -510,14 +510,15 @@ test("Linux settings search hides controls that cannot render", () => {
     Array.from(context.filter({
       sectionSlug: "appearance",
       messages: [dockMessage, themeMessage],
-    }, false).messages, (message) => message.id),
+    }).messages, (message) => message.id),
     [themeMessage.id],
   );
+  context.navigator.userAgent = "Codex Macintosh";
   assert.deepEqual(
     Array.from(context.filter({
       sectionSlug: "appearance",
       messages: [dockMessage, themeMessage],
-    }, true).messages, (message) => message.id),
+    }).messages, (message) => message.id),
     [dockMessage.id, themeMessage.id],
   );
 });
@@ -582,7 +583,7 @@ test("subagent nickname metadata patch accepts current upstream patched aliases"
   assert.deepEqual(warnings, []);
 });
 
-test("subagent metadata descriptor ignores matching sibling bundles without metadata", () => {
+test("subagent metadata descriptor targets the current app-initial bundle", () => {
   const descriptor = corePatchDescriptors().find((candidate) =>
     candidate.id === "subagent-nickname-metadata-shape",
   );
@@ -600,18 +601,18 @@ test("subagent metadata descriptor ignores matching sibling bundles without meta
       "function Xl(e){return e==null?null:Zl(e.agentNickname)??Zl(B(e.source)?.agentNickname)}",
       "function Zl(e){if(e==null)return null;let t=e.trim();return t.length===0?null:t}",
     ].join("");
-    fs.writeFileSync(path.join(assetsDir, "app-server-manager-signals-test.js"), siblingSource);
-    fs.writeFileSync(path.join(assetsDir, "use-host-config-test.js"), metadataSource);
+    fs.writeFileSync(path.join(assetsDir, "local-conversation-thread-test.js"), siblingSource);
+    fs.writeFileSync(path.join(assetsDir, "app-initial-test.js"), metadataSource);
 
     const { value: result, warnings } = captureWarns(() =>
       patchAssetFiles(tempRoot, descriptor.pattern, descriptor.apply, "missing subagent metadata bundle"),
     );
 
-    assert.deepEqual(result, { matched: 2, changed: 1 });
+    assert.deepEqual(result, { matched: 1, changed: 1 });
     assert.deepEqual(warnings, []);
-    assert.equal(fs.readFileSync(path.join(assetsDir, "app-server-manager-signals-test.js"), "utf8"), siblingSource);
+    assert.equal(fs.readFileSync(path.join(assetsDir, "local-conversation-thread-test.js"), "utf8"), siblingSource);
     assert.match(
-      fs.readFileSync(path.join(assetsDir, "use-host-config-test.js"), "utf8"),
+      fs.readFileSync(path.join(assetsDir, "app-initial-test.js"), "utf8"),
       /Zl\(e\.agentNickname\)\?\?Zl\(e\.agent_nickname\)\?\?Zl\(B\(e\.source\)\?\.agentNickname\)/,
     );
   } finally {
@@ -1108,22 +1109,18 @@ test("default core patch descriptors are grouped and unique", () => {
   );
   const computerUseInstallFlow = descriptors.find((descriptor) => descriptor.id === "linux-computer-use-install-flow");
   assert.equal(
-    computerUseInstallFlow.pattern.test(
-      "app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~notebook-preview-~iaq4jiqv-current.js",
-    ),
+    computerUseInstallFlow.pattern.test("app-initial-BTphDPeq.js"),
     true,
   );
-  assert.equal(computerUseInstallFlow.pattern.test("app-initial~app-main-current.js"), false);
+  assert.equal(computerUseInstallFlow.pattern.test("computer-use-settings-DsM_pz8i.js"), false);
   const computerUseHostPlatform = descriptors.find(
     (descriptor) => descriptor.id === "linux-computer-use-host-platform",
   );
   assert.equal(
-    computerUseHostPlatform.pattern.test(
-      "app-initial~artifact-tab-content.electron~notebook-preview-panel~app-main~settings-command-~ekwfx4j1-current.js",
-    ),
+    computerUseHostPlatform.pattern.test("app-initial-BTphDPeq.js"),
     true,
   );
-  assert.equal(computerUseHostPlatform.pattern.test("app-initial~app-main-current.js"), false);
+  assert.equal(computerUseHostPlatform.pattern.test("computer-use-settings-DsM_pz8i.js"), false);
   assert.equal(
     descriptors.find((descriptor) => descriptor.id === "linux-terminal-user-path")?.ciPolicy,
     "optional",
@@ -1201,24 +1198,8 @@ test("window controls safe-area descriptor matches current app shell chunks", ()
   );
 
   assert.ok(descriptor);
-  assert.equal(
-    descriptor.pattern.test(
-      "app-initial~app-main~new-thread-panel-page~appgen-library-page~hotkey-window-thread-page~ho~legacy.js",
-    ),
-    false,
-  );
-  assert.equal(
-    descriptor.pattern.test(
-      "app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~app-main~appgen-s~j5d6n91g-DVu-pwEX.js",
-    ),
-    true,
-  );
-  assert.equal(
-    descriptor.pattern.test(
-      "app-initial~app-main~hotkey-window-thread-page~thread-app-shell-chrome~header~remote-conver~current.js",
-    ),
-    false,
-  );
+  assert.equal(descriptor.pattern.test("app-initial-BTphDPeq.js"), true);
+  assert.equal(descriptor.pattern.test("thread-app-shell-chrome-Bd9NMPi_.js"), false);
 });
 
 test("optional webview descriptors follow the current upstream chunk split", () => {
@@ -1231,16 +1212,8 @@ test("optional webview descriptors follow the current upstream chunk split", () 
   );
 
   assert.ok(automationUpdate);
-  assert.equal(
-    automationUpdate.pattern.test("app-initial~app-main~onboarding-page-CIkoyvFz.js"),
-    true,
-  );
-  assert.equal(
-    automationUpdate.pattern.test(
-      "app-initial~app-main~onboarding-page~hotkey-window-thread-page~quick-chat-window-page~chatg~f5p8e1kp-BULs9Wt5.js",
-    ),
-    true,
-  );
+  assert.equal(automationUpdate.pattern.test("app-initial-BTphDPeq.js"), true);
+  assert.equal(automationUpdate.pattern.test("automation-Cw8V_VYx.js"), false);
   assert.equal(
     automationUpdate.assetMatch(
       ".map(e=>({type:`function`,...e,...Tc.has(e.name)?{}:{deferLoading:!0}}))",
@@ -1252,22 +1225,12 @@ test("optional webview descriptors follow the current upstream chunk split", () 
     false,
   );
   assert.ok(tooltipCollision);
-  assert.equal(
-    tooltipCollision.pattern.test(
-      "app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~notebook-preview-~kr7rxhqe-BaAm4SxE.js",
-    ),
-    true,
-  );
+  assert.equal(tooltipCollision.pattern.test("app-initial-BTphDPeq.js"), true);
   assert.equal(
     tooltipCollision.pattern.test("composer-utility-bar-Cpb8DT_h.js"),
     false,
   );
-  assert.equal(
-    tooltipCollision.pattern.test(
-      "app-initial~app-main~onboarding-page~hotkey-window-thread-page~quick-chat-window-page~chatg~legacy.js",
-    ),
-    false,
-  );
+  assert.equal(tooltipCollision.pattern.test("popcorn-electron-surface-style-ww0sgmMY.js"), false);
 });
 
 test("patch descriptors reject unsupported ciPolicy values", () => {
@@ -1315,11 +1278,9 @@ test("fast-mode guard descriptor follows upstream service-tier bundle names", ()
     descriptor.id === "linux-fast-mode-model-guard",
   );
 
-  assert.ok(descriptor.pattern.test("use-is-fast-mode-enabled-abc.js"));
-  assert.ok(descriptor.pattern.test("read-service-tier-for-request-BJ8QN0Q7.js"));
-  assert.ok(descriptor.pattern.test("use-service-tier-settings-DFXPADNF.js"));
-  assert.ok(descriptor.pattern.test("app-server-manager-signals-BOGyjFm3.js"));
-  assert.equal(descriptor.pattern.test("service-tier-icons-CsNhab5W.js"), false);
+  assert.ok(descriptor.pattern.test("app-initial-BTphDPeq.js"));
+  assert.equal(descriptor.pattern.test("app-initial-BTphDPeq.css"), false);
+  assert.equal(descriptor.pattern.test("read-service-tier-for-request-BJ8QN0Q7.js"), false);
 });
 
 test("subagent nickname metadata descriptor follows upstream metadata bundle names", () => {
@@ -1327,9 +1288,8 @@ test("subagent nickname metadata descriptor follows upstream metadata bundle nam
     descriptor.id === "subagent-nickname-metadata-shape",
   );
 
-  assert.ok(descriptor.pattern.test("app-server-manager-signals-BOGyjFm3.js"));
-  assert.ok(descriptor.pattern.test("use-host-config-Dpd_LQBD.js"));
-  assert.equal(descriptor.pattern.test("thread-context-inputs-D5uMjcUB.js"), false);
+  assert.ok(descriptor.pattern.test("app-initial-BTphDPeq.js"));
+  assert.equal(descriptor.pattern.test("local-conversation-thread-BaIREoHa.js"), false);
 });
 
 function trayBundleFixture() {
@@ -2650,7 +2610,7 @@ test("adds a bounded will-quit drain fallback for Linux explicit quit", () => {
 });
 
 test("marks Linux quit-in-progress for the tray quit path", () => {
-  const source = `${currentMainBundlePrefix}${explicitQuitBundleFixture()}`;
+  const source = `${currentMainBundlePrefix}var q=class{systemQuitMenuItemLabel=\`Quit Codex\`;getNativeTrayMenuItems(){return[{label:this.systemQuitMenuItemLabel,click:()=>{n.app.quit()}}]}}`;
   const patched = applyPatchTwice(
     applyLinuxExplicitTrayQuitPatch,
     applyLinuxQuitGuardPatch(source),
@@ -2658,7 +2618,7 @@ test("marks Linux quit-in-progress for the tray quit path", () => {
 
   assert.match(
     patched,
-    /\{label:rB\(this\.appName\),click:\(\)=>\{typeof codexLinuxPrepareForExplicitQuit===`function`\?codexLinuxPrepareForExplicitQuit\(\):typeof codexLinuxMarkQuitInProgress===`function`&&codexLinuxMarkQuitInProgress\(\),n\.app\.quit\(\)\}\}/,
+    /\{label:this\.systemQuitMenuItemLabel,click:\(\)=>\{typeof codexLinuxPrepareForExplicitQuit===`function`\?codexLinuxPrepareForExplicitQuit\(\):typeof codexLinuxMarkQuitInProgress===`function`&&codexLinuxMarkQuitInProgress\(\),n\.app\.quit\(\)\}\}/,
   );
 });
 
@@ -2677,23 +2637,12 @@ test("marks Linux quit-in-progress for the quit-app IPC path", () => {
 
 test("supports explicit tray quit patching when minified aliases drift", () => {
   const source =
-    "let x=require(`electron`);var q=class{getNativeTrayMenuItems(){return[{label:rB(this.appName),click:()=>{x.app.quit()}}]}};if(m.type===`quit-app`){x.app.quit();return}";
+    "let x=require(`electron`);var q=class{systemQuitMenuItemLabel=`Quit Codex`;getNativeTrayMenuItems(){return[{label:this.systemQuitMenuItemLabel,click:()=>{x.app.quit()}}]}}";
   const patched = applyPatchTwice(applyLinuxExplicitTrayQuitPatch, source);
 
   assert.match(
     patched,
-    /\{label:rB\(this\.appName\),click:\(\)=>\{typeof codexLinuxPrepareForExplicitQuit===`function`\?codexLinuxPrepareForExplicitQuit\(\):typeof codexLinuxMarkQuitInProgress===`function`&&codexLinuxMarkQuitInProgress\(\),x\.app\.quit\(\)\}\}/,
-  );
-});
-
-test("supports explicit tray quit patching when upstream renames the quit label helper", () => {
-  const source =
-    "let n=require(`electron`);var q=class{getNativeTrayMenuItems(){return[{label:mH(this.appName),click:()=>{n.app.quit()}}]}};function mH(e){let t=n.Menu.buildFromTemplate([{role:`quit`}]);return(Array.isArray(t)?t:t.items)[0]?.label??`Quit ${e}`}";
-  const patched = applyPatchTwice(applyLinuxExplicitTrayQuitPatch, source);
-
-  assert.match(
-    patched,
-    /\{label:mH\(this\.appName\),click:\(\)=>\{typeof codexLinuxPrepareForExplicitQuit===`function`\?codexLinuxPrepareForExplicitQuit\(\):typeof codexLinuxMarkQuitInProgress===`function`&&codexLinuxMarkQuitInProgress\(\),n\.app\.quit\(\)\}\}/,
+    /\{label:this\.systemQuitMenuItemLabel,click:\(\)=>\{typeof codexLinuxPrepareForExplicitQuit===`function`\?codexLinuxPrepareForExplicitQuit\(\):typeof codexLinuxMarkQuitInProgress===`function`&&codexLinuxMarkQuitInProgress\(\),x\.app\.quit\(\)\}\}/,
   );
 });
 
@@ -2711,8 +2660,8 @@ test("supports explicit IPC quit patching when minified aliases drift", () => {
 test("patches remaining explicit quit handlers when another copy is already patched", () => {
   const quitMarkerExpression =
     "typeof codexLinuxPrepareForExplicitQuit===`function`?codexLinuxPrepareForExplicitQuit():typeof codexLinuxMarkQuitInProgress===`function`&&codexLinuxMarkQuitInProgress(),";
-  const patchedTrayQuit = `{label:rB(this.appName),click:()=>{${quitMarkerExpression}n.app.quit()}}`;
-  const unpatchedTrayQuit = "{label:rB(this.appName),click:()=>{n.app.quit()}}";
+  const patchedTrayQuit = `{label:this.systemQuitMenuItemLabel,click:()=>{${quitMarkerExpression}n.app.quit()}}`;
+  const unpatchedTrayQuit = "{label:this.systemQuitMenuItemLabel,click:()=>{n.app.quit()}}";
   const patchedIpcQuit = `if(o.type===\`quit-app\`){${quitMarkerExpression}n.app.quit();return}`;
   const unpatchedIpcQuit = "if(o.type===`quit-app`){n.app.quit();return}";
 
@@ -2728,7 +2677,7 @@ test("patches remaining explicit quit handlers when another copy is already patc
   assert.equal((patchedTray.match(/codexLinuxPrepareForExplicitQuit\(\)/g) ?? []).length, 2);
   assert.match(
     patchedTray,
-    /function createSecondTray\(\)\{return \{label:rB\(this\.appName\),click:\(\)=>\{typeof codexLinuxPrepareForExplicitQuit===`function`\?codexLinuxPrepareForExplicitQuit\(\):typeof codexLinuxMarkQuitInProgress===`function`&&codexLinuxMarkQuitInProgress\(\),n\.app\.quit\(\)\}\}\}/,
+    /function createSecondTray\(\)\{return \{label:this\.systemQuitMenuItemLabel,click:\(\)=>\{typeof codexLinuxPrepareForExplicitQuit===`function`\?codexLinuxPrepareForExplicitQuit\(\):typeof codexLinuxMarkQuitInProgress===`function`&&codexLinuxMarkQuitInProgress\(\),n\.app\.quit\(\)\}\}\}/,
   );
   assert.equal((patchedIpc.match(/codexLinuxPrepareForExplicitQuit\(\)/g) ?? []).length, 2);
   assert.match(
@@ -7781,8 +7730,8 @@ test("keeps already patched external Browser Use availability unchanged", () => 
 test("external Browser Use availability descriptor matches the current bundle name", () => {
   const descriptor = require("./patches/core/all-linux/webview/browser-use-external-availability/patch.js");
 
-  assert.match("use-is-plugins-enabled-current.js", descriptor.pattern);
-  assert.match("use-in-app-browser-use-availability-B4Bdb14G.js", descriptor.pattern);
+  assert.match("app-initial-BTphDPeq.js", descriptor.pattern);
+  assert.doesNotMatch("use-in-app-browser-use-availability-B4Bdb14G.js", descriptor.pattern);
 });
 
 test("allows Browser Use non-local navigation on Linux without the upstream rollout flag", () => {
@@ -8652,19 +8601,19 @@ test("Browser webview recovery descriptors target the current renderer chunks", 
   assert.ok(hostDescriptor);
   assert.ok(hiddenHostDescriptor);
   assert.match(
-    "app-initial~artifact-tab-content.electron~app-main~appgen-settings-page~page~pull-request-r~mxek7o2y-BH5mkLvE.js",
+    "app-initial-BTphDPeq.js",
     storeDescriptor.pattern,
   );
   assert.doesNotMatch(
-    "app-initial~app-main~onboarding-page-CIkoyvFz.js",
+    "local-conversation-page-rbWOMzR4.js",
     storeDescriptor.pattern,
   );
   assert.match(
-    "app-initial~app-main~pull-request-route~onboarding-page~hotkey-window-thread-page~quick-cha~mo2avlln-Be1pn_Z1.js",
+    "app-initial-BTphDPeq.js",
     hostDescriptor.pattern,
   );
   assert.doesNotMatch(
-    "app-initial~app-main~onboarding-page-CIkoyvFz.js",
+    "local-conversation-page-rbWOMzR4.js",
     hostDescriptor.pattern,
   );
   assert.match(
@@ -8686,18 +8635,8 @@ test("current split Browser webview assets apply all recovery descriptors withou
     fs.mkdirSync(assetsDir, { recursive: true });
     fs.writeFileSync(path.join(buildDir, "main.js"), "module.exports={}");
     fs.writeFileSync(
-      path.join(
-        assetsDir,
-        "app-initial~artifact-tab-content.electron~app-main~appgen-settings-page~page~pull-request-r~mxek7o2y-BH5mkLvE.js",
-      ),
-      browserUseRecoveryStoreSource,
-    );
-    fs.writeFileSync(
-      path.join(
-        assetsDir,
-        "app-initial~app-main~pull-request-route~onboarding-page~hotkey-window-thread-page~quick-cha~mo2avlln-Be1pn_Z1.js",
-      ),
-      browserUseRecoveryHostSource,
+      path.join(assetsDir, "app-initial-BTphDPeq.js"),
+      `${browserUseRecoveryStoreSource}${browserUseRecoveryHostSource}`,
     );
     fs.writeFileSync(
       path.join(assetsDir, "browser-sidebar-hidden-browser-use-webview-host-DbLBblbO.js"),
@@ -10064,24 +10003,15 @@ test("patchExtractedApp scans current Computer Use settings bundles when UI is e
           "x=selectPlugin(_.availablePlugins,computerUsePluginName,v);return x}",
       );
       fs.writeFileSync(
-        path.join(
-          assetsDir,
-          "app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~notebook-preview-~iaq4jiqv-current.js",
-        ),
+        path.join(assetsDir, "app-initial-current.js"),
         "function Ke(e){let t=cache(31),{hostId:n,marketplacePath:r,pluginName:i,remoteMarketplaceName:a,enabled:o}=e," +
           "c=o===void 0?!0:o,l=n??`local`,d;t[0]===l?d=t[1]:(d={hostId:l},t[0]=l,t[1]=d);" +
           "let f=hostReady(d),p=environment(),m;t[2]===i?m=t[3]:(m=i!=null&&isAvailabilityGated(i),t[2]=i,t[3]=m);" +
           "let g=m,_;t[4]!==l||t[5]!==g?(_={enabled:g,hostId:l},t[4]=l,t[5]=g,t[6]=_):_=t[6];" +
           "let v=useComputerUseAvailability(_),y=(r!=null||a!=null)&&i!=null,b=f&&c&&y&&g&&v.isLoading,x=f&&c&&y&&(!g||v.available);" +
           "let query=async()=>{if(i==null)throw Error(`plugin detail query requires pluginName`);return read(`read-plugin`,{hostId:l,pluginName:i})};" +
-          "return useQuery({queryFn:query,enabled:x})}",
-      );
-      fs.writeFileSync(
-        path.join(
-          assetsDir,
-          "app-initial~artifact-tab-content.electron~notebook-preview-panel~app-main~settings-command-~ekwfx4j1-current.js",
-        ),
-        "function Se(e){return e===`macOS`||e===`windows`}" +
+          "return useQuery({queryFn:query,enabled:x})}" +
+          "function Se(e){return e===`macOS`||e===`windows`}" +
           "function Ce(e){let t=cache(16),{enabled:n,hostId:r}=e,i=n===void 0?!0:n,{isLoading:a,platform:o}=usePlatform(),s=flag(`1506311413`),c;t[0]===r?c=t[1]:(c={featureName:`computer_use`,hostId:r},t[0]=r,t[1]=c);let l=useFeature(c),u=o===`windows`&&!a,d=i&&u,f;t[2]===d?f=t[3]:(f={enabled:d},t[2]=d,t[3]=f);let p=useWindowsFeature(f),m=l.isLoading||u&&p.isLoading,h=l.enabled&&(!u||p.enabled),g;t[4]!==h||t[5]!==i||t[6]!==m||t[7]!==s||t[8]!==a||t[9]!==o?(g=resolveAvailability({areRequiredFeaturesEnabled:h,enabled:i,isAnyFeatureLoading:m,isComputerUseGateEnabled:s,isHostCompatiblePlatform:Se(o),isPlatformLoading:a,windowType:`electron`}),t[4]=h,t[5]=i,t[6]=m,t[7]=s,t[8]=a,t[9]=o,t[10]=g):g=t[10];return g}",
       );
       fs.writeFileSync(path.join(tempRoot, "package.json"), JSON.stringify({ name: "codex" }));
@@ -10092,11 +10022,11 @@ test("patchExtractedApp scans current Computer Use settings bundles when UI is e
       const settingsPath = path.join(assetsDir, "computer-use-settings-DsM_pz8i.js");
       const detailPath = path.join(
         assetsDir,
-        "app-initial~avatarOverlayCompositionSurface~artifact-tab-content.electron~notebook-preview-~iaq4jiqv-current.js",
+        "app-initial-current.js",
       );
       const hostPlatformPath = path.join(
         assetsDir,
-        "app-initial~artifact-tab-content.electron~notebook-preview-panel~app-main~settings-command-~ekwfx4j1-current.js",
+        "app-initial-current.js",
       );
       const patchedSettings = fs.readFileSync(settingsPath, "utf8");
       const patchedDetail = fs.readFileSync(detailPath, "utf8");

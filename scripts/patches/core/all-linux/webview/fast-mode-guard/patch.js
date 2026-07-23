@@ -11,10 +11,11 @@ module.exports = [
     phase: "webview-asset",
     order: 1040,
     ciPolicy: "required-upstream",
-    // Older DMGs emit granular hook chunks; 26.623+ merges service-tier code
-    // into the shared `app-initial~app-main~…` bundle (and switched to optional
-    // chaining, so the guard is a no-op there). Match both shapes.
-    pattern: /^(?:use-is-fast-mode-enabled|read-service-tier-for-request|use-service-tier-settings|app-server-manager-signals|app-initial~app-main~).*\.js$/,
+    // The current app keeps service-tier selection in the initial application
+    // bundle. Its lookups are already optional-chain guarded, so this is
+    // normally an idempotent no-op that still proves the protected surface is
+    // present in the upstream build.
+    pattern: /^app-initial-[A-Za-z0-9_-]+\.js$/,
     missingDescription: "fast-mode/service-tier availability bundle",
     skipDescription: "fast-mode model guard patch",
     apply: applyLinuxFastModeModelGuardPatch,

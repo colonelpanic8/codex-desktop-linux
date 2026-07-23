@@ -53,17 +53,17 @@ const REMOTE_MOBILE_APP_SERVER_REMOTE_CONTROL_MARKER = "codexLinuxRemoteMobileAp
 const REMOTE_MOBILE_APP_SERVER_ARGS_NEEDLE =
   "[`-c`,`features.code_mode_host=true`,`app-server`,`--analytics-default-enabled`]";
 const REMOTE_MOBILE_RUNTIME_ASSET_PATTERN =
-  /^app-initial~artifact-tab-content\.electron~notebook-preview-panel~app-main~business-checkout~oxnpxkxc-[^.]+\.js$/u;
+  /^app-initial-[A-Za-z0-9_-]+\.js$/u;
 const REMOTE_MOBILE_TERMINAL_STATUS_ASSET_PATTERN =
-  /^app-initial~artifact-tab-content\.electron~notebook-preview-panel~app-main~business-checkout~oxnpxkxc-[^.]+\.js$/u;
+  /^app-initial-[A-Za-z0-9_-]+\.js$/u;
 const REMOTE_CONTROL_APP_MAIN_PAGE_ASSET_PATTERN =
-  /^app-initial~app-main~appgen-settings-page~page~appgen-library-page~appgen-page~appgen-setti~ogh9jurw-[^.]+\.js$/u;
+  /^app-initial-[A-Za-z0-9_-]+\.js$/u;
 const REMOTE_CONTROL_VISIBILITY_ASSET_PATTERN =
-  /^app-initial~avatarOverlayCompositionSurface~notebook-preview-panel~app-main~appgen-settings~el5fc9d5-[^.]+\.js$/u;
+  /^app-initial-[A-Za-z0-9_-]+\.js$/u;
 const REMOTE_CONTROL_LOAD_GATE_ASSET_PATTERN =
-  /^app-initial~artifact-tab-content\.electron~notebook-preview-panel~app-main~business-checkout~k87y25tw-[^.]+\.js$/u;
+  /^app-initial-[A-Za-z0-9_-]+\.js$/u;
 const REMOTE_MOBILE_ACTIVE_STATUS_ASSET_PATTERN =
-  /^app-initial~notebook-preview-panel~app-main~pull-request-route~projects-index-page~cloud-en~lpx9dmpy-[^.]+\.js$/u;
+  /^app-initial-[A-Za-z0-9_-]+\.js$/u;
 const REMOTE_CONTROL_LINUX_COPY_REPLACEMENTS = [
   ["defaultMessage:`Mac`", "defaultMessage:`Linux`"],
   ["Keep this Mac awake", "Keep this Linux desktop awake"],
@@ -1084,7 +1084,7 @@ function applyLinuxRemoteTerminalStatusRecoveryPatch(source) {
   }
 
   if (
-    !source.includes("hasInProgressSideChat") ||
+    !/hasInProgress(?:OwnedWork|SideChat)/u.test(source) ||
     !source.includes("isResponseInProgress") ||
     !source.includes("threadRuntimeStatus") ||
     !source.includes("pendingRequestType")
@@ -1092,20 +1092,23 @@ function applyLinuxRemoteTerminalStatusRecoveryPatch(source) {
     return source;
   }
 
+  const ownedWorkProperty = source.includes("hasInProgressOwnedWork")
+    ? "hasInProgressOwnedWork"
+    : "hasInProgressSideChat";
   const userInputRequestHelper =
     "function codexLinuxRemoteHasUserInputRequest(e){try{return Array.isArray(e)&&e.some(e=>e?.method===`item/tool/requestUserInput`||e?.method===`item/tool/requestOptionPicker`||e?.method===`item/tool/requestSetupCodexContextPicker`||e?.method===`item/tool/call`&&(e?.params?.tool===`request_onboarding_input`||e?.params?.tool===`request_option_picker`||e?.params?.tool===`setup_codex_context_picker`||e?.params?.tool===`setup_codex_step`))}catch{return!1}}";
   const buildTerminalStatusReplacement = (
     fnName,
-    sideChatVar,
+    ownedWorkVar,
     responseProgressVar,
     systemErrorVar,
     resumeStateVar,
     runtimeStatusVar,
   ) =>
-    `function ${fnName}({hasInProgressSideChat:${sideChatVar},isResponseInProgress:${responseProgressVar},latestTurnHasSystemError:${systemErrorVar},resumeState:${resumeStateVar},threadRuntimeStatus:${runtimeStatusVar},hasUserInputRequest:codexLinuxRemoteHasUserInputRequestPending=!0}){let codexLinuxRemoteTerminalStatusActive=${runtimeStatusVar}?.type===\`active\`,codexLinuxRemoteTerminalStatusActiveFlags=Array.isArray(${runtimeStatusVar}?.activeFlags)?${runtimeStatusVar}.activeFlags:null,codexLinuxRemoteTerminalStatusWaitingOnUserInput=codexLinuxRemoteTerminalStatusActiveFlags?.includes(\`waitingOnUserInput\`)===!0,codexLinuxRemoteTerminalStatusLoading=codexLinuxRemoteTerminalStatusActive&&(${responseProgressVar}===!0||codexLinuxRemoteTerminalStatusActiveFlags==null||codexLinuxRemoteTerminalStatusActiveFlags.length>0&&(!codexLinuxRemoteTerminalStatusWaitingOnUserInput||codexLinuxRemoteHasUserInputRequestPending===!0));return ${sideChatVar}?\`loading\`:${runtimeStatusVar}?.type===\`systemError\`?\`error\`:codexLinuxRemoteTerminalStatusLoading?\`loading\`:${resumeStateVar}===\`needs_resume\`?\`idle\`:${systemErrorVar}?\`error\`:${responseProgressVar}===!0?\`loading\`:\`idle\`}`;
+    `function ${fnName}({${ownedWorkProperty}:${ownedWorkVar},isResponseInProgress:${responseProgressVar},latestTurnHasSystemError:${systemErrorVar},resumeState:${resumeStateVar},threadRuntimeStatus:${runtimeStatusVar},hasUserInputRequest:codexLinuxRemoteHasUserInputRequestPending=!0}){let codexLinuxRemoteTerminalStatusActive=${runtimeStatusVar}?.type===\`active\`,codexLinuxRemoteTerminalStatusActiveFlags=Array.isArray(${runtimeStatusVar}?.activeFlags)?${runtimeStatusVar}.activeFlags:null,codexLinuxRemoteTerminalStatusWaitingOnUserInput=codexLinuxRemoteTerminalStatusActiveFlags?.includes(\`waitingOnUserInput\`)===!0,codexLinuxRemoteTerminalStatusLoading=codexLinuxRemoteTerminalStatusActive&&(${responseProgressVar}===!0||codexLinuxRemoteTerminalStatusActiveFlags==null||codexLinuxRemoteTerminalStatusActiveFlags.length>0&&(!codexLinuxRemoteTerminalStatusWaitingOnUserInput||codexLinuxRemoteHasUserInputRequestPending===!0));return ${ownedWorkVar}?\`loading\`:${runtimeStatusVar}?.type===\`systemError\`?\`error\`:codexLinuxRemoteTerminalStatusLoading?\`loading\`:${resumeStateVar}===\`needs_resume\`?\`idle\`:${systemErrorVar}?\`error\`:${responseProgressVar}===!0?\`loading\`:\`idle\`}`;
 
   const terminalStatusPattern =
-    /function ([A-Za-z_$][\w$]*)\(\{hasInProgressSideChat:([A-Za-z_$][\w$]*),isResponseInProgress:([A-Za-z_$][\w$]*),latestTurnHasSystemError:([A-Za-z_$][\w$]*),resumeState:([A-Za-z_$][\w$]*),threadRuntimeStatus:([A-Za-z_$][\w$]*)\}\)\{return \2\?`loading`:\6\?\.type===`systemError`\?`error`:\6\?\.type===`active`\?`loading`:\5===`needs_resume`\?`idle`:\4\?`error`:\3===!0\?`loading`:`idle`\}/u;
+    /function ([A-Za-z_$][\w$]*)\(\{hasInProgress(?:OwnedWork|SideChat):([A-Za-z_$][\w$]*),isResponseInProgress:([A-Za-z_$][\w$]*),latestTurnHasSystemError:([A-Za-z_$][\w$]*),resumeState:([A-Za-z_$][\w$]*),threadRuntimeStatus:([A-Za-z_$][\w$]*)\}\)\{return \2\?`loading`:\6\?\.type===`systemError`\?`error`:\6\?\.type===`active`\?`loading`:\5===`needs_resume`\?`idle`:\4\?`error`:\3===!0\?`loading`:`idle`\}/u;
   const terminalStatusMatch = source.match(terminalStatusPattern);
   if (terminalStatusMatch == null) {
     console.warn(
@@ -1116,7 +1119,7 @@ function applyLinuxRemoteTerminalStatusRecoveryPatch(source) {
   const [
     ,
     terminalStatusFnName,
-    sideChatVar,
+    ownedWorkVar,
     responseProgressVar,
     systemErrorVar,
     resumeStateVar,
@@ -1149,7 +1152,7 @@ function applyLinuxRemoteTerminalStatusRecoveryPatch(source) {
   );
   const requestExpression = source.match(pendingCallPattern)?.[1] ?? null;
   const terminalCallPattern = new RegExp(
-    `${escapeRegExp(terminalStatusFnName)}\\(\\{hasInProgressSideChat:([^{}]+?),isResponseInProgress:([^{}]+?),resumeState:([^{}]+?),threadRuntimeStatus:([^{}]+?),latestTurnHasSystemError:([^{}]+?)\\}\\)`,
+    `${escapeRegExp(terminalStatusFnName)}\\(\\{hasInProgress(?:OwnedWork|SideChat):([^{}]+?),isResponseInProgress:([^{}]+?),resumeState:([^{}]+?),threadRuntimeStatus:([^{}]+?),latestTurnHasSystemError:([^{}]+?)\\}\\)`,
     "u",
   );
   if (requestExpression == null || !terminalCallPattern.test(source)) {
@@ -1163,7 +1166,7 @@ function applyLinuxRemoteTerminalStatusRecoveryPatch(source) {
     terminalStatusPattern,
     `${userInputRequestHelper}${buildTerminalStatusReplacement(
       terminalStatusFnName,
-      sideChatVar,
+      ownedWorkVar,
       responseProgressVar,
       systemErrorVar,
       resumeStateVar,
@@ -1176,7 +1179,7 @@ function applyLinuxRemoteTerminalStatusRecoveryPatch(source) {
   );
   patched = patched.replace(
     terminalCallPattern,
-    `${terminalStatusFnName}({hasInProgressSideChat:$1,isResponseInProgress:$2,resumeState:$3,threadRuntimeStatus:$4,latestTurnHasSystemError:$5,hasUserInputRequest:codexLinuxRemoteHasUserInputRequest(${requestExpression})})`,
+    `${terminalStatusFnName}({${ownedWorkProperty}:$1,isResponseInProgress:$2,resumeState:$3,threadRuntimeStatus:$4,latestTurnHasSystemError:$5,hasUserInputRequest:codexLinuxRemoteHasUserInputRequest(${requestExpression})})`,
   );
 
   return patched;
