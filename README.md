@@ -293,6 +293,7 @@ requirements, known limitations, configuration, and tests.
 | `desktop-identity` | Use the Community desktop entry for notification and child-process desktop identity | [Docs](linux-features/desktop-identity/README.md) |
 | `desktop-new-window` | Add a New Window action to the ChatGPT Community desktop launcher | [Docs](linux-features/desktop-new-window/README.md) |
 | `directory-only-working-tree-watch` | Bounded Watchbound working-tree watching | [Docs](linux-features/directory-only-working-tree-watch/README.md) |
+| `external-browser-access` | Let the standalone CLI and third-party app-server hosts use Browser Use without the desktop access host | [Docs](linux-features/external-browser-access/README.md) |
 | `filesystem-root-follow-ups` | Allow follow-ups in existing local tasks rooted at `/` | [Docs](linux-features/filesystem-root-follow-ups/README.md) |
 | `flatpak-chrome-native-messaging` | Bridge the official Chrome extension into Flatpak Google Chrome | [Docs](linux-features/flatpak-chrome-native-messaging/README.md) |
 | `frameless-titlebar` | Hide official Linux overlay buttons for compositor-managed decorations | [Docs](linux-features/frameless-titlebar/README.md) |

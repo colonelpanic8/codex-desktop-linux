@@ -200,6 +200,7 @@ rm -rf -- ./codex-app
 | `computer-use-linux` | UI کنترل دسکتاپ Linux و backend native مبتنی بر MCP | [Docs](linux-features/computer-use-linux/README.md) |
 | `copilot-reasoning-effort` | defaultهای persistent برای reasoning effort در sessionهای Copilot-auth | [Docs](linux-features/copilot-reasoning-effort/README.md) |
 | `directory-only-working-tree-watch` | پایش bounded working tree با Watchbound | [Docs](linux-features/directory-only-working-tree-watch/README.md) |
+| `external-browser-access` | اجازه استفاده از Browser Use به CLI مستقل و app-server hostهای third-party بدون access host دسکتاپ | [Docs](linux-features/external-browser-access/README.md) |
 | `filesystem-root-follow-ups` | اجازه follow-up در taskهای local موجود که root آن‌ها `/` است | [Docs](linux-features/filesystem-root-follow-ups/README.md) |
 | `flatpak-chrome-native-messaging` | bridge کردن extension رسمی Chrome به Google Chrome نسخه Flatpak | [Docs](linux-features/flatpak-chrome-native-messaging/README.md) |
 | `frameless-titlebar` | پنهان‌کردن دکمه‌های overlay رسمی Linux برای decoration مدیریت‌شده توسط compositor | [Docs](linux-features/frameless-titlebar/README.md) |

@@ -266,6 +266,7 @@ Nix 用户应从 profile、Home Manager 配置或 NixOS module 中删除该包�
 | `desktop-identity` | 通知与子进程使用 Community 桌面入口标识，以正确显示图标 | [文档](linux-features/desktop-identity/README.md) |
 | `desktop-new-window` | 在 ChatGPT Community 桌面启动器中添加“新建窗口”操作 | [文档](linux-features/desktop-new-window/README.md) |
 | `directory-only-working-tree-watch` | 有界 Watchbound 工作树监听 | [文档](linux-features/directory-only-working-tree-watch/README.md) |
+| `external-browser-access` | 允许独立 CLI 与第三方 app-server 宿主在没有桌面 access host 时使用 Browser Use | [文档](linux-features/external-browser-access/README.md) |
 | `filesystem-root-follow-ups` | 允许工作目录为 `/` 的现有本地任务继续发送消息 | [文档](linux-features/filesystem-root-follow-ups/README.md) |
 | `flatpak-chrome-native-messaging` | 将官方 Chrome 扩展连接到 Flatpak Google Chrome | [文档](linux-features/flatpak-chrome-native-messaging/README.md) |
 | `frameless-titlebar` | 隐藏官方 Linux overlay 按钮，改由 compositor 管理窗口装饰 | [文档](linux-features/frameless-titlebar/README.md) |

@@ -1,0 +1,9 @@
+{
+  "id": "external-browser-access",
+  "title": "External Browser Access",
+  "description": "Lets CLI and third-party app-server sessions use Browser Use without the desktop access host, as before 26.1023.",
+  "defaultEnabled": false,
+  "entrypoints": {
+    "patchDescriptors": "./patch.js"
+  }
+}
